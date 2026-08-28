@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer ကြက်မွေးမြူရေး - Daily Record</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={
+  darkMode:'class',
+  theme:{extend:{fontFamily:{padauk:['Padauk','Noto Sans Myanmar','sans-serif']}}}
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&family=Noto+Sans+Myanmar:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+ /* Myanmar font - use Windows built-in first for offline, then Google Fonts fallback */
+ *{font-family:'Myanmar Text','Padauk','Noto Sans Myanmar','Pyidaungsu',sans-serif}
+ ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
+ .dark ::-webkit-scrollbar-thumb{background:#334155}
+ @media print{.no-print{display:none!important}.print-card{break-inside:avoid}body{background:white!important} #tabBar{display:none} #dailySection,#weeklySection,#financeSection{display:block!important}}
+ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;padding:4px;opacity:0.7}
+ .dark input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.8}
+ /* ensure burmese renders even if Padauk fails */
+ html{ -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body class="bg-[#f8fafc] dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-200">
+
+<header class="bg-gradient-to-r from-amber-600 to-orange-600 dark:from-slate-800 dark:to-slate-900 text-white sticky top-0 z-30 shadow-lg border-b dark:border-slate-700">
+  <div class="max-w-[1450px] mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 bg-white dark:bg-amber-500 rounded-xl flex items-center justify-center text-amber-600 dark:text-white text-xl"><i class="fa-solid fa-egg"></i></div>
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold leading-none">Layer ကြက်မွေးမြူရေး Daily Record</h1>
+        <p class="text-xs md:text-sm opacity-90">ခြံအလိုက် မှတ်တမ်း • ပိဿာဖြင့် ဥဝိတ် • အပတ်စဥ် အလိုအလျောက်</p>
+      </div>
+    </div>
+    <div class="flex gap-2 no-print items-center">
+      <button onclick="toggleDark()" id="darkBtn" class="w-10 h-10 bg-white/20 border border-white/30 rounded-xl flex items-center justify-center hover:bg-white/30" title="Dark Mode"><i class="fa-solid fa-moon"></i></button>
+      <button onclick="exportCSV()" class="bg-white dark:bg-slate-700 dark:text-white text-amber-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 dark:hover:bg-slate-600"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+      <button onclick="window.print()" class="bg-white/20 border border-white/30 px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/30"><i class="fa-solid fa-print mr-1"></i> Print</button>
+    </div>
+  </div>
+</header>
+
+<div class="max-w-[1450px] mx-auto px-4 py-6 space-y-6">
+
+  <!-- FARM SELECTOR - COMPACT -->
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border dark:border-slate-700 p-3 print-card">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h2 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-house-chimney text-amber-600 dark:text-amber-400"></i> ကြက်ခြံ စာရင်း <span class="hidden md:inline text-xs font-normal text-slate-400">— ခြံရွေးပါ</span></h2>
+      <button onclick="openFarmModal()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl px-3 py-1.5 text-xs shadow"><i class="fa-solid fa-plus mr-1"></i> ခြံ အသစ်</button>
+    </div>
+    <div id="farmList" class="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory mt-2 scrollbar-thin"></div>
+    <div id="noFarmMsg" class="hidden text-center py-4 text-slate-400 text-xs border border-dashed dark:border-slate-600 rounded-xl mt-2">
+      <i class="fa-solid fa-tractor text-lg mb-1 block text-amber-500"></i>
+      ခြံ မရှိသေးပါ — <b>“ခြံ အသစ်”</b> နှိပ်ပါ
+    </div>
+    <div id="selectedFarmBar" class="hidden mt-2 bg-gradient-to-r from-amber-600 to-orange-600 dark:from-amber-700 dark:to-orange-700 text-white rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="bg-white/20 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-location-dot text-xs"></i></span>
+        <div class="min-w-0">
+          <div class="font-bold text-sm leading-none truncate" id="selFarmName">-</div>
+          <div class="text-[11px] opacity-90 truncate" id="selFarmMeta">-</div>
+        </div>
+        <span id="selFarmAgeBadge" class="hidden sm:inline bg-white text-amber-700 font-bold text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap"></span>
+      </div>
+      <div class="flex gap-1 flex-shrink-0">
+        <button onclick="openFarmModal(selectedFarmId)" class="w-7 h-7 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center" title="ပြင်မည်"><i class="fa-solid fa-pen text-xs"></i></button>
+        <button onclick="deleteFarm(selectedFarmId)" class="w-7 h-7 bg-red-500 hover:bg-red-600 rounded-lg flex items-center justify-center" title="ဖျက်မည်"><i class="fa-solid fa-trash text-xs"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="mainContent" class="hidden space-y-6">
+
+    <!-- Flock Stats -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border dark:border-slate-700 p-4 space-y-3 print-card">
+        <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-circle-info text-amber-600 dark:text-amber-400"></i> ရွေးထားသည့် ခြံ အချက်အလက်</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between bg-slate-50 dark:bg-slate-700/50 rounded-xl px-3 py-2"><span class="text-slate-500 dark:text-slate-400">ခြံနာမည်</span><b id="infoName">-</b></div>
+          <div class="flex justify-between bg-slate-50 dark:bg-slate-700/50 rounded-xl px-3 py-2"><span class="text-slate-500 dark:text-slate-400">အမျိုးအစား</span><b id="infoBreed">-</b></div>
+          <div class="flex justify-between bg-slate-50 dark:bg-slate-700/50 rounded-xl px-3 py-2"><span class="text-slate-500 dark:text-slate-400">စတင်ကောင်</span><b id="infoInitial">-</b></div>
+          <div class="flex justify-between bg-slate-50 dark:bg-slate-700/50 rounded-xl px-3 py-2"><span class="text-slate-500 dark:text-slate-400">စထည့်ရက်</span><b id="infoStartDate">-</b></div>
+          <div class="flex justify-between bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2"><span class="text-amber-700 dark:text-amber-300 font-bold">စထည့်စဥ် အသက်</span><b id="infoStartAge" class="text-amber-700 dark:text-amber-300">-</b></div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 pt-2">
+          <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center border border-amber-100 dark:border-amber-800">
+            <div class="text-[11px] font-bold text-amber-700 dark:text-amber-300">ကျန်ကြက်</div>
+            <div id="statLive" class="text-xl font-bold">0</div>
+          </div>
+          <div class="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 text-center border border-red-100 dark:border-red-800">
+            <div class="text-[11px] font-bold text-red-700 dark:text-red-300">စုစုသေ</div>
+            <div id="statDead" class="text-xl font-bold">0</div>
+          </div>
+          <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-center border border-emerald-100 dark:border-emerald-800">
+            <div class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">သေနှုန်း%</div>
+            <div id="statMort" class="text-xl font-bold">0%</div>
+          </div>
+        </div>
+        <div class="bg-slate-900 dark:bg-black text-white rounded-xl p-3">
+          <div class="flex justify-between items-center"><span class="text-xs opacity-80">ယနေ့ ကြက်သက်</span><span id="statAgeToday" class="font-bold text-amber-300">-</span></div>
+          <div class="text-[11px] opacity-60 mt-1" id="statAgeDetail">-</div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border dark:border-slate-700 shadow-sm"><div class="text-xs font-bold text-slate-500 dark:text-slate-400"><i class="fa-solid fa-bowl-rice text-amber-500"></i> ပျမ်းမျှ အစာ/၁ကောင်</div><div id="kpiFeed" class="text-2xl font-bold mt-1">0 <span class="text-sm font-normal text-slate-500">g</span></div><div class="text-[11px] text-slate-400">နောက်ဆုံး ၇ ရက်</div></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border dark:border-slate-700 shadow-sm"><div class="text-xs font-bold text-slate-500 dark:text-slate-400"><i class="fa-solid fa-egg text-orange-500"></i> ဥနှုန်း %</div><div id="kpiHen" class="text-2xl font-bold mt-1">0 <span class="text-sm font-normal text-slate-500">%</span></div><div class="text-[11px] text-slate-400">နောက်ဆုံး ၇ ရက်</div></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border dark:border-slate-700 shadow-sm"><div class="text-xs font-bold text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-weight-scale"></i> ၁ဆွဲ(၃၀၀လုံး) ပျမ်းမျှ</div><div id="kpiEggW" class="text-2xl font-bold mt-1">0 <span class="text-sm font-normal text-slate-500">ပိဿာ</span></div><div class="text-[11px] text-slate-400">နောက်ဆုံး ၇ ရက် • ၃၀၀လုံး/ဆွဲ</div></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border dark:border-slate-700 shadow-sm"><div class="text-xs font-bold text-slate-500 dark:text-slate-400"><i class="fa-solid fa-chart-line text-blue-500"></i> စုစုပေါင်း ဥ</div><div id="kpiTotalEggs" class="text-2xl font-bold mt-1">0</div><div class="text-[11px] text-slate-400" id="kpiViss">0 ပိဿာ</div></div>
+        <div class="lg:col-span-4 bg-white dark:bg-slate-800 rounded-2xl p-4 border dark:border-slate-700 shadow-sm">
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+            <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-chart-simple text-amber-600 dark:text-amber-400"></i> ရက် ၃၀ စာ ဥနှုန်း% နှင့် ဆွဲဝိတ်</h3>
+            <div class="flex items-center gap-2 no-print">
+              <select id="chartYear" onchange="renderChart()" class="border dark:border-slate-600 dark:bg-slate-700 rounded-xl px-2 py-1.5 text-xs font-bold"></select>
+              <select id="chartMonth" onchange="renderChart()" class="border dark:border-slate-600 dark:bg-slate-700 rounded-xl px-2 py-1.5 text-xs font-bold">
+                <option value="1">1 - ဇန်နဝါရီ</option><option value="2">2 - ဖေဖော်ဝါရီ</option><option value="3">3 - မတ်</option><option value="4">4 - ဧပြီ</option><option value="5">5 - မေ</option><option value="6">6 - ဇွန်</option><option value="7">7 - ဇူလိုင်</option><option value="8">8 - သြဂုတ်</option><option value="9">9 - စက်တင်ဘာ</option><option value="10">10 - အောက်တိုဘာ</option><option value="11">11 - နိုဝင်ဘာ</option><option value="12">12 - ဒီဇင်ဘာ</option>
+              </select>
+              <span class="text-[11px] bg-slate-100 dark:bg-slate-600 px-2 py-1 rounded-full">လ/နှစ် ရွေး → ရက် ၃၀ ပြမည်</span>
+            </div>
+          </div>
+          <div class="h-[210px]"><canvas id="weekChart"></canvas></div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-2 text-center">Y-ဝင်ရိုး <b>70%–100%</b> (70 75 80 85 90 95 100) • လိုင်းဖြင့် တရက်ချင်း ဆက်ပြထား</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINANCE SECTION -->
+    <div id="financeSection" class="hidden bg-white dark:bg-slate-800 rounded-2xl shadow-sm border dark:border-slate-700 overflow-hidden print-card">
+      <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b dark:border-slate-700 bg-gradient-to-r from-emerald-700 to-emerald-600 dark:from-slate-900 dark:to-black text-white">
+        <h2 class="font-bold"><i class="fa-solid fa-coins text-amber-300"></i> ဝင်ငွေ / ကုန်ကျစရိတ် (လချုပ်)</h2>
+        <span class="text-xs bg-white/20 px-3 py-1 rounded-full">၁ ဆွဲ = ၃၀၀ လုံး • လအလိုက် ချုပ်ပြထားသည်</span>
+      </div>
+      <!-- Sale entry -->
+      <div class="p-4 md:p-5 border-b dark:border-slate-700 no-print">
+        <h3 class="font-bold mb-3 text-sm flex items-center gap-2"><i class="fa-solid fa-egg text-orange-500"></i> ဥအရောင်း မှတ်တမ်း ထည့်ရန်</h3>
+        <form id="saleForm" onsubmit="addSale(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">နေ့စွဲ *</label>
+            <input id="s_date" type="date" required onclick="this.showPicker && this.showPicker()" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">အဆွဲ / အရေ *</label>
+            <input id="s_desc" type="text" required placeholder="ဥပမာ- ၁၅ဆွဲ + ၂၀၀လုံး" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+            <div class="h-4 mt-1 text-[10px] text-slate-400">၁ ဆွဲ = ကြက်ဥ ၃၀၀ လုံး</div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">ပိဿာ *</label>
+            <input id="s_viss" type="number" step="0.01" min="0" required placeholder="25.5" oninput="saleAutoAmount()" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+            <div class="h-4 mt-1 text-[10px] text-slate-400">စုစုပေါင်း ဝိတ် (ပိဿာ)</div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">ဈေးနှုန်း (ကျပ်/ပိဿာ)</label>
+            <input id="s_price" type="number" step="0.01" min="0" placeholder="10500" oninput="saleAutoAmount()" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">ဝယ်သူအမည်</label>
+            <input id="s_buyer" type="text" placeholder="ဥပမာ- ကိုအောင်" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">သင့်ငွေ (ကျပ်) *</label>
+            <input id="s_amount" type="number" step="0.01" min="0" required placeholder="159000" oninput="sAmountManual=true" class="mt-1 w-full h-[42px] border-2 border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+            <div class="h-4 mt-1 text-[10px] text-slate-400">ပိဿာ × ဈေးနှုန်း (ပြင်လည်းရ)</div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-transparent h-4 select-none">.</label>
+            <div class="mt-1 flex gap-2">
+              <button id="s_cancelBtn" type="button" onclick="cancelSaleEdit()" class="hidden w-[42px] h-[42px] bg-slate-400 hover:bg-slate-500 text-white font-bold rounded-xl text-sm flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-xmark"></i></button>
+              <button id="s_submitBtn" type="submit" class="flex-1 w-full h-[42px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> ထည့်မည်</button>
+            </div>
+            <div class="h-4 mt-1"></div>
+          </div>
+        </form>
+      </div>
+      <!-- Expense entry -->
+      <div class="p-4 md:p-5 border-b dark:border-slate-700 no-print bg-slate-50 dark:bg-slate-700/20">
+        <h3 class="font-bold mb-3 text-sm flex items-center gap-2"><i class="fa-solid fa-receipt text-red-500"></i> ကုန်ကျစရိတ် ထည့်ရန်</h3>
+        <form id="expenseForm" onsubmit="addExpense(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">နေ့စွဲ *</label>
+            <input id="e_date" type="date" required onclick="this.showPicker && this.showPicker()" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-red-500 outline-none cursor-pointer">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">အမျိုးအစား *</label>
+            <select id="e_type" required class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+              <option value="feed">ကြက်စာ</option>
+              <option value="medicine">ဆေးဖိုး</option>
+              <option value="rent">ခြံငှားခ</option>
+              <option value="labor">လုပ်အားခ</option>
+              <option value="other">အထွေထွေ</option>
+            </select>
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">အမည်</label>
+            <input id="e_name" type="text" placeholder="ဥပမာ- အစာအိတ် / ND ဆေး" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">အရေအတွက်</label>
+            <input id="e_qty" type="number" step="0.01" min="0" placeholder="20" oninput="expAutoAmount()" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">ဈေးနှုန်း</label>
+            <input id="e_price" type="number" step="0.01" min="0" placeholder="62000" oninput="expAutoAmount()" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">သင့်ငွေ (ကျပ်) *</label>
+            <input id="e_amount" type="number" step="0.01" min="0" required placeholder="1240000" oninput="eAmountManual=true" class="mt-1 w-full h-[42px] border-2 border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+            <div class="h-4 mt-1 text-[10px] text-slate-400">အရေအတွက် × ဈေးနှုန်း (ပြင်လည်းရ)</div>
+          </div>          <div class="flex flex-col">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">မှတ်ချက်</label>
+            <input id="e_note" type="text" placeholder="" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+            <div class="h-4 mt-1"></div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-transparent h-4 select-none">.</label>
+                        <div class="mt-1 flex gap-2">
+              <button id="e_cancelBtn" type="button" onclick="cancelExpEdit()" class="hidden w-[42px] h-[42px] bg-slate-400 hover:bg-slate-500 text-white font-bold rounded-xl text-sm flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-xmark"></i></button>
+              <button id="e_submitBtn" type="submit" class="flex-1 h-[42px] bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm shadow flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> ထည့်မည်</button>
+            </div>
+            <div class="h-4 mt-1"></div>
+          </div>
+        </form>
+      </div>
+      <!-- Monthly summary table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-900 dark:bg-black text-white text-xs">
+            <tr>
+              <th class="px-2 py-3 text-left whitespace-nowrap">လ</th>
+              <th class="px-2 py-3 text-center bg-emerald-700 whitespace-nowrap">ဥအရောင်း<br><span class="font-normal opacity-70">(ဆွဲ/လုံး/ပိဿာ)</span></th>
+              <th class="px-2 py-3 text-center bg-emerald-700 whitespace-nowrap">ဝင်ငွေ (ကျပ်)</th>
+              <th class="px-2 py-3 text-center bg-amber-700 whitespace-nowrap">ကြက်စာ</th>
+              <th class="px-2 py-3 text-center bg-amber-700 whitespace-nowrap">ဆေးဖိုး</th>
+              <th class="px-2 py-3 text-center bg-amber-700 whitespace-nowrap">ခြံငှားခ</th>
+              <th class="px-2 py-3 text-center bg-amber-700 whitespace-nowrap">လုပ်အားခ</th>
+              <th class="px-2 py-3 text-center bg-amber-700 whitespace-nowrap">အထွေထွေ</th>
+              <th class="px-2 py-3 text-center bg-amber-700 whitespace-nowrap">စုကုန် (ကျပ်)</th>
+              <th class="px-2 py-3 text-center whitespace-nowrap">အမြတ် (ကျပ်)</th>
+              <th class="px-2 py-3 text-center no-print">စ</th>
+            </tr>
+          </thead>
+          <tbody id="financeBody" class="divide-y dark:divide-slate-700"></tbody>
+          <tfoot class="bg-emerald-50 dark:bg-emerald-900/20 font-bold text-xs border-t-2 border-emerald-300 dark:border-emerald-700"><tr id="financeFoot"></tr></tfoot>
+        </table>
+      </div>
+      <div id="financeEmpty" class="text-center py-10 text-slate-400 text-sm hidden"><i class="fa-solid fa-inbox text-2xl mb-2 block"></i> ဝင်ငွေ/ကုန်ကျစရိတ် မှတ်တမ်း မရှိသေးပါ</div>
+
+      <!-- Records list -->
+      <div class="border-t dark:border-slate-700">
+        <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-700/30">
+          <h3 class="font-bold text-sm"><i class="fa-solid fa-list-ul text-emerald-600"></i> ထည့်ထားသော စာရင်းမှတ်တမ်းများ <span id="financeRecCount" class="text-xs font-normal text-slate-400"></span></h3>
+          <select id="finTypeFilter" onchange="renderFinanceRecords()" class="border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-2 py-1.5 text-xs font-bold">
+            <option value="all">အားလုံး</option>
+            <option value="income">ဝင်ငွေ</option>
+            <option value="expense">ကုန်ကျစရိတ်</option>
+          </select>
+        </div>
+        <div id="financeRecords" class="px-3 py-3 space-y-1.5 max-h-[460px] overflow-y-auto"></div>
+      </div>
+      <div class="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/10 border-t dark:border-slate-700 text-xs leading-5 text-slate-600 dark:text-slate-400">
+        <b class="dark:text-slate-200">တွက်နည်း:</b> ၁ ဆွဲ = ကြက်ဥ ၃၀၀ လုံး • ဝင်ငွေ = ရိုက်ထားသော သင့်ငွေ • ကုန်ကျစရိတ် သင့်ငွေ = အရေအတွက် × ဈေးနှုန်း (ကိုယ်တိုင် ပြင်လည်းရ) • အမြတ် = ဝင်ငွေ−စုကုန် • လချုပ်ကို နေ့စွဲအလိုက် ချုပ်သည် • <b>စ</b> ကိုနှိပ်၍ တစ်လချုပ် ကြည့်နိုင်သည် • အောက်ခြေ စာရင်းမှတ်တမ်းများတွင် ပြင်/ဖျက်နိုင်သည်</div>
+    </div>
+    <!-- Entry Form -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border dark:border-slate-700 p-4 md:p-5 no-print">
+      <h2 class="font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-amber-600 dark:text-amber-400"></i> နေ့စဥ် စာရင်း ထည့်ရန် <span class="text-xs font-normal text-slate-400">— ဥဝိတ်ကို ပိဿာ ဖြင့်ထည့် • ဆေးပါ ထည့်နိုင်</span></h2>
+      <form id="entryForm" onsubmit="addEntry(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 items-start">
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">နေ့စွဲ * <span class="font-normal text-slate-400">(calendar)</span></label>
+          <input id="f_date" type="date" required onclick="this.showPicker && this.showPicker()" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer">
+          <div class="h-4 mt-1"></div>
+        </div>
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">အစာ (kg) *</label>
+          <input id="f_feed" type="number" step="0.01" min="0" required placeholder="110" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          <div class="h-4 mt-1 text-[10px] text-slate-400">၁အိတ်=50kg</div>
+        </div>
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">ကြက်သေ (ကောင်)</label>
+          <input id="f_dead" type="number" min="0" value="0" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          <div class="h-4 mt-1"></div>
+        </div>
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">ဥအရေအတွက် (လုံး) *</label>
+          <input id="f_eggs" type="number" min="0" required placeholder="850" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          <div class="h-4 mt-1"></div>
+        </div>
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-emerald-700 dark:text-emerald-400 h-4">ဥဝိတ်ချိန် (ပိဿာ) *</label>
+          <input id="f_viss" type="number" step="0.01" min="0" required placeholder="30.5" class="mt-1 w-full h-[42px] border-2 border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+          <div class="h-4 mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">1 ပိဿာ = 1.633 kg</div>
+        </div>
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">ဆေးတိုက်ခြင်း</label>
+          <input id="f_medicine" type="text" placeholder="ဥပမာ: ND+IB" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          <div class="h-4 mt-1"></div>
+        </div>
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-300 h-4">မှတ်ချက်</label>
+          <input id="f_note" type="text" placeholder="ရာသီ / အခြား" class="mt-1 w-full h-[42px] border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          <div class="h-4 mt-1"></div>
+        </div>
+        <div class="flex flex-col">
+          <label class="text-xs font-bold text-transparent h-4 select-none">.</label>
+                    <div class="mt-1 flex gap-2">
+            <button id="entryCancelBtn" type="button" onclick="cancelEntryEdit()" class="hidden w-[42px] h-[42px] bg-slate-400 hover:bg-slate-500 text-white font-bold rounded-xl text-sm flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-xmark"></i></button>
+            <button id="entrySubmitBtn" type="submit" class="flex-1 h-[42px] bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-sm shadow flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> ထည့်မည်</button>
+          </div>
+          <div class="h-4 mt-1"></div>
+        </div>
+      </form>
+      <div class="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl py-2.5"><div class="text-[11px] font-bold text-amber-700 dark:text-amber-300">တကောင် အစာ (auto)</div><div id="pvFeed" class="font-bold dark:text-white">- g</div></div>
+        <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl py-2.5"><div class="text-[11px] font-bold text-orange-700 dark:text-orange-300">ဥနှုန်း %</div><div id="pvHen" class="font-bold dark:text-white">- %</div></div>
+        <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl py-2.5"><div class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">၁ဆွဲ(၃၀၀လုံး) ပျမ်းမျှဝိတ်</div><div id="pvW" class="font-bold dark:text-white">- ပိဿာ</div><div id="pvViss" class="text-[10px] text-slate-500 dark:text-slate-400">-</div></div>
+        <div class="bg-slate-50 dark:bg-slate-700/50 border dark:border-slate-600 rounded-xl py-2.5"><div class="text-[11px] font-bold text-slate-600 dark:text-slate-300">ကြက်သက် (ထိုနေ့)</div><div id="pvAge" class="font-bold text-sm dark:text-white">- </div></div>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div id="tabBar" class="no-print flex gap-2 p-1 bg-slate-200 dark:bg-slate-700 rounded-2xl w-fit max-w-full overflow-x-auto">
+      <button id="tabBtnWeekly" onclick="switchTab('weekly')" class="px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white whitespace-nowrap"><i class="fa-solid fa-calendar-week text-amber-600"></i> အပတ်စဥ် အစီရင်ခံစာ <span id="badgeWeekly" class="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-xs">0 ပတ်</span></button>
+      <button id="tabBtnDaily" onclick="switchTab('daily')" class="px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 whitespace-nowrap"><i class="fa-solid fa-table text-slate-500"></i> နေ့စဥ် မှတ်တမ်း <span id="badgeDaily" class="bg-slate-100 dark:bg-slate-600 px-2 py-0.5 rounded-full text-xs">0 ရက်</span></button>
+      <button id="tabBtnFinance" onclick="switchTab('finance')" class="px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 whitespace-nowrap"><i class="fa-solid fa-coins text-emerald-600"></i> ဝင်ငွေ / ကုန်ကျစရိတ် <span id="badgeFinance" class="bg-slate-100 dark:bg-slate-600 px-2 py-0.5 rounded-full text-xs">0 လ</span></button>
+    </div>
+    <div class="no-print text-xs text-slate-500 dark:text-slate-400 -mt-2 px-1">💡 <b>110 ပါတ်+ (≈770+ ရက်)</b> အထိ ဆက်တိုက် မှတ်နိုင်သည် — အပတ်စဥ် 12 ပတ်/စာမျက်နှာ • နေ့စဥ် 30 ရက်/စာမျက်နှာ (ပြောင်းလဲနိုင်) • ဝင်ငွေ/ကုန်ကျစရိတ် tab တွင် လချုပ် ပါဝင်သည်</div>
+
+    <!-- WEEKLY SECTION (comes first) -->
+    <div id="weeklySection" class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border dark:border-slate-700 overflow-hidden print-card">
+      <div class="px-4 py-3 border-b dark:border-slate-700 bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-900 dark:to-black text-white flex flex-wrap items-center justify-between gap-2">
+        <h2 class="font-bold"><i class="fa-solid fa-calendar-week text-amber-400"></i> အပတ်စဥ် အစီရင်ခံစာ <span class="font-normal text-xs opacity-80">(ကြက်သက်ပါတ် အလိုက် • နောက်ဆုံးအပတ်အပေါ်ဆုံး)</span></h2>
+        <span class="text-xs bg-white/20 px-3 py-1 rounded-full">ဥနှုန်း% • ဆွဲဝိတ်(ပိဿာ) • FCR</span>
+      </div>
+      <div class="px-4 py-2 bg-slate-50 dark:bg-slate-700/30 border-b dark:border-slate-700 flex flex-wrap items-center justify-between gap-2 no-print">
+        <div class="flex items-center gap-2 text-xs">
+          <span class="text-slate-500 dark:text-slate-400">တစ်မျက်နှာ</span>
+          <select id="weeklyPerPage" onchange="changeWeeklyPerPage()" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-2 py-1.5 text-sm font-bold">
+            <option value="8">8 ပတ်</option>
+            <option value="12" selected>12 ပတ် (3 လ)</option>
+            <option value="26">26 ပတ် (6 လ)</option>
+            <option value="52">52 ပတ် (1 နှစ်)</option>
+            <option value="120">အားလုံး (110 ပါတ်+)</option>
+          </select>
+          <span id="weeklyInfo" class="text-slate-500 dark:text-slate-400"></span>
+        </div>
+        <div class="flex items-center gap-1" id="weeklyPagination"></div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs">
+            <tr>
+              <th class="px-3 py-3 text-left">ကြက်သက် (ပါတ်)</th>
+              <th class="px-3 py-3 text-center">ရက်အပိုင်းအခြား</th>
+              <th class="px-3 py-3 text-center">ရက်ပေါင်း</th>
+              <th class="px-3 py-3 text-center">ပျမ်းမျှကျန်</th>
+              <th class="px-3 py-3 text-center">စုသေ</th>
+              <th class="px-3 py-3 text-center">စုအစာ(kg)</th>
+              <th class="px-3 py-3 text-center">၁ကောင်အစာ(g)</th>
+              <th class="px-3 py-3 text-center bg-amber-100 dark:bg-amber-900/30">စုဥ</th>
+              <th class="px-3 py-3 text-center bg-amber-100 dark:bg-amber-900/30">ဥနှုန်း%</th>
+              <th class="px-3 py-3 text-center bg-emerald-100 dark:bg-emerald-900/20">စုဥဝိတ်(ပိဿာ)</th>
+              <th class="px-3 py-3 text-center bg-emerald-100 dark:bg-emerald-900/20">ပျမ်းမျှ ၁ဆွဲ(၃၀၀) ပိဿာ</th>
+              <th class="px-3 py-3 text-center">FCR</th>
+            </tr>
+          </thead>
+          <tbody id="weeklyBody" class="divide-y dark:divide-slate-700 text-sm"></tbody>
+        </table>
+      </div>
+      <div id="weeklyEmpty" class="text-center py-6 text-slate-400 text-sm hidden">မရှိသေးပါ</div>
+      <div class="px-3 py-3 border-t dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-wrap items-center justify-between gap-2 no-print">
+        <div id="weeklyPaginationBottom" class="flex items-center gap-1"></div>
+        <div class="text-xs text-slate-500 dark:text-slate-400" id="weeklyPageInfo"></div>
+      </div>
+      <div class="px-4 py-3 bg-amber-50 dark:bg-amber-900/10 border-t dark:border-slate-700 text-xs leading-5 text-slate-600 dark:text-slate-400">
+        <b class="dark:text-slate-200">တွက်နည်း:</b> ၁ကောင်အစာ(g)=(အစာkg×1000)÷ကျန်ကြက် • ဥနှုန်း%=(ဥ÷ကျန်ကြက်)×100 • ၁ပိဿာ=1.633kg • <b>၁ဆွဲ(၃၀၀လုံး) ပိဿာ = (ပိဿာ ÷ ဥအရေအတွက်) × 300</b> • FCR=စုအစာkg÷စုဥဝိတ်kg • အပတ်စဥ်=ကြက်သက်ပါတ် အလိုက် (နောက်ဆုံးအပတ်အပေါ်ဆုံး)
+      </div>
+    </div>
+
+    <!-- DAILY SECTION -->
+    <div id="dailySection" class="hidden bg-white dark:bg-slate-800 rounded-2xl shadow-sm border dark:border-slate-700 overflow-hidden print-card">
+      <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+        <h2 class="font-bold"><i class="fa-solid fa-table text-amber-600 dark:text-amber-400"></i> နေ့စဥ် မှတ်တမ်း ဇယား <span class="text-xs font-normal text-slate-500 dark:text-slate-400">— နောက်ဆုံးရက်အပေါ်ဆုံး</span></h2>
+        <div class="flex items-center gap-2 no-print flex-wrap">
+          <input id="searchDate" type="date" onclick="this.showPicker && this.showPicker()" class="border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 py-1.5 text-sm cursor-pointer" onchange="resetDailyPage();renderTable()">
+          <button onclick="document.getElementById('searchDate').value=''; resetDailyPage();renderTable()" class="text-xs bg-white dark:bg-slate-700 border dark:border-slate-600 px-3 py-1.5 rounded-xl">အားလုံး</button>
+          <button onclick="clearFarmRecords()" class="text-xs bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 px-3 py-1.5 rounded-xl"><i class="fa-solid fa-trash"></i> ဤခြံစာရင်းဖျက်</button>
+        </div>
+      </div>
+      <div class="px-4 py-2 bg-slate-50 dark:bg-slate-700/30 border-b dark:border-slate-700 flex flex-wrap items-center justify-between gap-2 no-print">
+        <div class="flex items-center gap-2 text-xs">
+          <span class="text-slate-500 dark:text-slate-400">တစ်မျက်နှာ</span>
+          <select id="dailyPerPage" onchange="changeDailyPerPage()" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-2 py-1.5 text-sm font-bold">
+            <option value="14">14 ရက် (2 ပတ်)</option>
+            <option value="20">20 ရက်</option>
+            <option value="30" selected>30 ရက် (1 လ)</option>
+            <option value="50">50 ရက်</option>
+            <option value="100">100 ရက်</option>
+          </select>
+          <span id="dailyInfo" class="text-slate-500 dark:text-slate-400"></span>
+        </div>
+        <div class="flex items-center gap-1" id="dailyPagination"></div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-900 dark:bg-black text-white text-xs">
+            <tr>
+              <th class="px-2 py-3 text-left whitespace-nowrap">နေ့စွဲ</th>
+              <th class="px-2 py-3 text-center whitespace-nowrap">ကြက်သက်<br><span class="font-normal opacity-60">(ပါတ်)</span></th>
+              <th class="px-2 py-3 text-center whitespace-nowrap">ကျန်ကြက်</th>
+              <th class="px-2 py-3 text-center">ကြက်သေ</th>
+              <th class="px-2 py-3 text-center bg-amber-600">အစာ(kg)</th>
+              <th class="px-2 py-3 text-center bg-amber-600">၁ကောင်အစာ(g)</th>
+              <th class="px-2 py-3 text-center bg-orange-600">ဥ(လုံး)</th>
+              <th class="px-2 py-3 text-center bg-orange-600">ဥနှုန်း%</th>
+              <th class="px-2 py-3 text-center bg-emerald-600">ဥဝိတ်(ပိဿာ)</th>
+              <th class="px-2 py-3 text-center bg-emerald-600">၁ဆွဲ(၃၀၀) ပိဿာ</th>
+              <th class="px-2 py-3 text-left">ဆေး</th>
+              <th class="px-2 py-3 text-left">မှတ်ချက်</th>
+              <th class="px-2 py-3 text-center no-print">ပြင်</th>
+            </tr>
+          </thead>
+          <tbody id="dailyBody" class="divide-y dark:divide-slate-700"></tbody>
+          <tfoot class="bg-amber-50 dark:bg-amber-900/20 font-bold text-xs border-t-2 border-amber-300 dark:border-amber-700"><tr id="dailyFoot"></tr></tfoot>
+        </table>
+      </div>
+      <div id="emptyMsg" class="text-center py-10 text-slate-400 text-sm hidden"><i class="fa-solid fa-inbox text-2xl mb-2 block"></i> မှတ်တမ်း မရှိသေးပါ</div>
+      <div class="px-3 py-3 border-t dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-wrap items-center justify-between gap-2 no-print">
+        <div id="dailyPaginationBottom" class="flex items-center gap-1"></div>
+        <div class="text-xs text-slate-500 dark:text-slate-400" id="dailyPageInfo"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="text-center text-xs text-slate-400 pb-6">© Layer Daily Record • Data ကို Browser ထဲသိမ်းသည် (LocalStorage) • Offline ရသည် • စာမျက်နှာ ခွဲပြခြင်း 700+ ရက်အတွက် အဆင်ပြေ</p>
+</div>
+
+<!-- Month Detail Modal -->
+<div id="monthModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-[560px] overflow-hidden border dark:border-slate-700 max-h-[90vh] flex flex-col">
+    <div class="bg-gradient-to-r from-emerald-700 to-emerald-600 dark:from-slate-800 dark:to-slate-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+      <h3 id="monthModalTitle" class="font-bold">လချုပ်</h3>
+      <button onclick="closeMonthModal()" class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center hover:bg-white/30"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="p-5 overflow-y-auto space-y-3">
+      <div id="monthSummary" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+      <div id="monthDetail" class="space-y-1.5"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Farm Modal -->
+<div id="farmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-[560px] overflow-hidden border dark:border-slate-700">
+    <div class="bg-gradient-to-r from-amber-600 to-orange-600 dark:from-slate-800 dark:to-slate-900 text-white px-5 py-4 flex items-center justify-between">
+      <h3 id="farmModalTitle" class="font-bold"><i class="fa-solid fa-house-chimney"></i> ခြံ အသစ် ထည့်ရန်</h3>
+      <button onclick="closeFarmModal()" class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center hover:bg-white/30"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="farmForm" onsubmit="saveFarm(event)" class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="md:col-span-2">
+        <label class="text-xs font-bold text-slate-600 dark:text-slate-300">ခြံ နာမည် *</label>
+        <input id="farmName" type="text" required placeholder="ဥပမာ: ခြံ-A, ခြံ-၁" class="w-full mt-1 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+      </div>
+      <div class="md:col-span-2">
+        <label class="text-xs font-bold text-slate-600 dark:text-slate-300">ကြက်အမျိုးအစား * <span class="font-normal text-slate-400">— စာရိုက်ထည့်ပါ</span></label>
+        <input id="farmBreed" type="text" required placeholder="ဥပမာ: Hy-Line Brown, Lohmann Brown" class="w-full mt-1 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 dark:text-slate-300">စတင် ကြက်အရေအတွက် (ကောင်) *</label>
+        <input id="farmBirds" type="number" min="1" required placeholder="1000" class="w-full mt-1 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-bold">
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 dark:text-slate-300">ကြက်စထည့်တဲ့ ရက်စွဲ *</label>
+        <input id="farmDate" type="date" required onclick="this.showPicker && this.showPicker()" class="w-full mt-1 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer">
+      </div>
+      <div class="md:col-span-2">
+        <label class="text-xs font-bold text-amber-700 dark:text-amber-400">ကြက်စထည့်စဥ် အသက် *</label>
+        <select id="farmAge" required class="w-full mt-1 border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-white rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-bold">
+          <option value="1">၁ ရက်သား (မီးကိုင် - Day-Old Chick)</option>
+          <option value="70">၁၀ ပါတ်သား (70 ရက်)</option>
+          <option value="77">၁၁ ပါတ်သား (77 ရက်)</option>
+          <option value="84">၁၂ ပါတ်သား (84 ရက်)</option>
+          <option value="91">၁၃ ပါတ်သား (91 ရက်)</option>
+          <option value="98">၁၄ ပါတ်သား (98 ရက်)</option>
+          <option value="105">၁၅ ပါတ်သား (105 ရက်)</option>
+          <option value="112">၁၆ ပါတ်သား (112 ရက်)</option>
+        </select>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">ဥပမာ: ၂၇-၈-၂၆ နေ့ ၁၀ပါတ်သားကြက်စထည့်လျှင် “၁၀ ပါတ်သား” ရွေးပြီး ရက်စွဲ 2026-08-27 ထည့်ပါ</div>
+      </div>
+      <div id="farmAgePreview" class="md:col-span-2 bg-slate-900 dark:bg-black text-white rounded-xl px-4 py-3 text-sm flex justify-between items-center">
+        <span>ယနေ့ ကြက်သက် preview</span><b id="farmAgePreviewVal" class="text-amber-300">-</b>
+      </div>
+      <div class="md:col-span-2 flex gap-2 pt-2">
+        <button type="button" onclick="closeFarmModal()" class="flex-1 bg-slate-100 dark:bg-slate-700 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-600 font-bold rounded-xl py-2.5 text-sm">မလုပ်သေးပါ</button>
+        <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-2.5 text-sm shadow"><i class="fa-solid fa-floppy-disk mr-1"></i> Save ခြံ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+window.addEventListener('error', e=>{
+  console.error(e.error||e.message);
+  let b=document.createElement('div');
+  b.style.cssText='position:fixed;top:10px;left:10px;right:10px;background:#fee2e2;color:#991b1b;padding:12px;border-radius:12px;z-index:9999;border:1px solid #fecaca;font-size:13px;white-space:pre-wrap;';
+  b.textContent='⚠️ JS Error: '+(e.message||e.error)+'\\n'+(e.filename||'')+':'+(e.lineno||'');
+  document.body && document.body.prepend(b);
+});
+const VISS_TO_KG = 1.63293;
+const TRAY_SIZE = 300; // 1 ဆွဲ = 300 လုံး
+const LS_FARMS='layer_farms_v4';
+const LS_CURRENT='layer_current_farm_v4';
+const LS_RECORDS='layer_records_v4';
+const LS_DARK='layer_dark_v4';
+const LS_TAB='layer_tab_v4';
+const LS_SALES='layer_sales_v4';
+const LS_EXPENSES='layer_expenses_v4';
+
+function safeJSON(k, fallback){ try{ let v=localStorage.getItem(k); return v? JSON.parse(v): fallback; } catch(e){ console.warn('corrupt',k,e); localStorage.removeItem(k); return fallback; } }
+// migrate v3 -> v4 if v4 empty
+(function migrateV3toV4(){
+  try{
+    let v4farms = localStorage.getItem(LS_FARMS);
+    if(!v4farms || v4farms==='[]'){
+      let v3farms = localStorage.getItem('layer_farms_v3');
+      let v3recs = localStorage.getItem('layer_records_v3');
+      let v3cur = localStorage.getItem('layer_current_farm_v3');
+      if(v3farms && v3farms!=='[]'){
+        localStorage.setItem(LS_FARMS, v3farms);
+        if(v3recs) localStorage.setItem(LS_RECORDS, v3recs);
+        if(v3cur) localStorage.setItem(LS_CURRENT, v3cur);
+        console.log('migrated v3 -> v4');
+      }
+    }
+  }catch(e){ console.warn('migrate fail',e); }
+})();
+let farms = safeJSON(LS_FARMS, []);
+let selectedFarmId = localStorage.getItem(LS_CURRENT) || null;
+let allRecords = safeJSON(LS_RECORDS, {});
+let allSales = safeJSON(LS_SALES, {});
+let allExpenses = safeJSON(LS_EXPENSES, {});
+let editingFarmId = null;
+let monthModalKey = null;
+let editingSaleId = null;
+let editingExpId = null;
+let editingEntryDate = null;
+let sAmountManual = false;
+let eAmountManual = false;
+
+// pagination state
+let dailyPage = 1;
+let dailyPerPage = parseInt(localStorage.getItem('layer_dailyPerPage_v4')||'30') || 30;
+let weeklyPage = 1;
+let weeklyPerPage = parseInt(localStorage.getItem('layer_weeklyPerPage_v4')||'12') || 12;
+let currentTab = localStorage.getItem(LS_TAB) || 'weekly';
+
+// dark mode
+function applyDark(v){
+  document.documentElement.classList.toggle('dark', v);
+  localStorage.setItem(LS_DARK, v?'1':'0');
+  let btn=document.getElementById('darkBtn');
+  if(btn) btn.innerHTML = v? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+}
+function toggleDark(){ applyDark(!document.documentElement.classList.contains('dark')); setTimeout(()=>{renderKPIs(); renderChart();},50); }
+applyDark(localStorage.getItem(LS_DARK)==='1' || window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+function switchTab(tab){
+  currentTab = tab;
+  localStorage.setItem(LS_TAB, tab);
+  const wBtn=document.getElementById('tabBtnWeekly');
+  const dBtn=document.getElementById('tabBtnDaily');
+  const fBtn=document.getElementById('tabBtnFinance');
+  const wSec=document.getElementById('weeklySection');
+  const dSec=document.getElementById('dailySection');
+  const fSec=document.getElementById('financeSection');
+  const activeCls='px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white whitespace-nowrap';
+  const idleCls='px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 whitespace-nowrap';
+  wBtn.className = tab==='weekly'? activeCls : idleCls;
+  dBtn.className = tab==='daily'? activeCls : idleCls;
+  fBtn.className = tab==='finance'? activeCls : idleCls;
+  wSec.classList.toggle('hidden', tab!=='weekly');
+  dSec.classList.toggle('hidden', tab!=='daily');
+  fSec.classList.toggle('hidden', tab!=='finance');
+  if(tab==='finance') renderFinance();
+}
+
+// migrate
+(function migrate(){
+  if(farms.length===0){
+    let oldMeta = JSON.parse(localStorage.getItem('layer_meta_v2')||'null');
+    let oldRecs = JSON.parse(localStorage.getItem('layer_daily_records_v2')||'null');
+    if(oldMeta && oldRecs){
+      let id='farm_'+Date.now();
+      farms=[{id, name: oldMeta.batchName||'ခြံ-၁', breed: oldMeta.batchName||'Hy-Line Brown', initialBirds: oldMeta.initialBirds||1000, startDate: oldMeta.startDate, startAgeDays: 1}];
+      allRecords[id]=oldRecs.map(r=> ({ date:r.date, feed:r.feed, dead:r.dead, eggs:r.eggs, viss: +(r.eggWeight / VISS_TO_KG).toFixed(2), medicine:'', note:r.note||'' }));
+      selectedFarmId=id; persist();
+    }
+  }
+})();
+function persist(){
+  localStorage.setItem(LS_FARMS, JSON.stringify(farms));
+  localStorage.setItem(LS_RECORDS, JSON.stringify(allRecords));
+  localStorage.setItem(LS_SALES, JSON.stringify(allSales));
+  localStorage.setItem(LS_EXPENSES, JSON.stringify(allExpenses));
+  if(selectedFarmId) localStorage.setItem(LS_CURRENT, selectedFarmId); else localStorage.removeItem(LS_CURRENT);
+}
+function genId(){ return 'farm_'+Date.now()+'_'+Math.floor(Math.random()*9999); }
+const todayStr = new Date().toISOString().slice(0,10);
+
+['farmDate','farmAge'].forEach(id=> document.getElementById(id).addEventListener('change', updateFarmAgePreview));
+['farmDate','farmAge'].forEach(id=> document.getElementById(id).addEventListener('input', updateFarmAgePreview));
+function updateFarmAgePreview(){
+  let d=document.getElementById('farmDate').value;
+  let a=parseInt(document.getElementById('farmAge').value)||0;
+  if(!d||!a){ document.getElementById('farmAgePreviewVal').textContent='-'; return; }
+  let diff=Math.floor((new Date(todayStr)-new Date(d))/(1000*60*60*24));
+  if(diff<0) diff=0;
+  let ageDays=a+diff;
+  let w=Math.floor(ageDays/7), rem=ageDays%7, disp= rem===0? `${w} ပါတ်သား` : `${w} ပါတ် ${rem} ရက် (${ageDays} ရက်)`;
+  document.getElementById('farmAgePreviewVal').textContent = disp + ` • ယနေ့ ${todayStr} တွင်`;
+}
+function openFarmModal(id=null){
+  editingFarmId=id;
+  document.getElementById('farmModal').classList.remove('hidden');
+  document.getElementById('farmModal').classList.add('flex');
+  if(id){
+    let f=farms.find(x=>x.id===id);
+    document.getElementById('farmModalTitle').innerHTML='<i class="fa-solid fa-pen"></i> ခြံ ပြင်ဆင်ရန်';
+    document.getElementById('farmName').value=f.name;
+    document.getElementById('farmBreed').value=f.breed;
+    document.getElementById('farmBirds').value=f.initialBirds;
+    document.getElementById('farmDate').value=f.startDate;
+    document.getElementById('farmAge').value=f.startAgeDays;
+  } else {
+    document.getElementById('farmModalTitle').innerHTML='<i class="fa-solid fa-house-chimney"></i> ခြံ အသစ် ထည့်ရန်';
+    document.getElementById('farmForm').reset();
+    document.getElementById('farmAge').value='1';
+    document.getElementById('farmDate').value=todayStr;
+  }
+  updateFarmAgePreview();
+}
+function closeFarmModal(){ document.getElementById('farmModal').classList.add('hidden'); document.getElementById('farmModal').classList.remove('flex'); editingFarmId=null; }
+document.getElementById('farmModal').addEventListener('click', e=>{ if(e.target.id==='farmModal') closeFarmModal(); });
+function saveFarm(e){
+  e.preventDefault();
+  let name=document.getElementById('farmName').value.trim();
+  let breed=document.getElementById('farmBreed').value.trim();
+  let birds=parseInt(document.getElementById('farmBirds').value);
+  let date=document.getElementById('farmDate').value;
+  let ageDays=parseInt(document.getElementById('farmAge').value);
+  if(!name||!breed||!birds||!date||!ageDays) return alert('အချက်အလက် ပြည့်စုံအောင် ဖြည့်ပါ');
+  if(editingFarmId){
+    let f=farms.find(x=>x.id===editingFarmId);
+    Object.assign(f,{name, breed, initialBirds:birds, startDate:date, startAgeDays:ageDays});
+  } else {
+    let id=genId();
+    farms.push({id, name, breed, initialBirds:birds, startDate:date, startAgeDays:ageDays});
+    allRecords[id]=[];
+    selectedFarmId=id;
+  }
+  persist(); closeFarmModal(); renderFarms();
+  if(selectedFarmId) selectFarm(selectedFarmId);
+}
+function deleteFarm(id){
+  if(!confirm('ဤခြံ နှင့် မှတ်တမ်းအားလုံး ဖျက်မလား?')) return;
+  farms=farms.filter(f=>f.id!==id);
+  delete allRecords[id];
+  delete allSales[id];
+  delete allExpenses[id];
+  if(selectedFarmId===id) selectedFarmId = farms[0]?.id || null;
+  persist(); renderFarms();
+  if(selectedFarmId) selectFarm(selectedFarmId); else showNoFarm();
+}
+function selectFarm(id){
+  selectedFarmId=id;
+  localStorage.setItem(LS_CURRENT, id);
+  dailyPage=1; weeklyPage=1;
+  const sd=document.getElementById('s_date'); if(sd) sd.value=todayStr;
+  const ed=document.getElementById('e_date'); if(ed) ed.value=todayStr;
+  renderFarms(); renderAll();
+}
+function renderFarms(){
+  let c=document.getElementById('farmList');
+  let noMsg=document.getElementById('noFarmMsg');
+  let bar=document.getElementById('selectedFarmBar');
+  let main=document.getElementById('mainContent');
+  c.innerHTML='';
+  if(farms.length===0){
+    noMsg.classList.remove('hidden');
+    bar.classList.add('hidden');
+    main.classList.add('hidden');
+    return;
+  }
+  noMsg.classList.add('hidden');
+  try { farms.forEach(f=>{
+    let isSel = f.id===selectedFarmId;
+    let ageText = formatStartAge(f.startAgeDays);
+    let diff=Math.floor((new Date(todayStr)-new Date(f.startDate))/(1000*60*60*24));
+    if(diff<0) diff=0;
+    let ageDays=f.startAgeDays+diff;
+    let w=Math.floor(ageDays/7), rem=ageDays%7;
+    let curAge = rem===0? `${w}ပါတ်`:`${w}ပါတ်${rem}ရက်`;
+    let recCount=Array.isArray(allRecords[f.id]) ? allRecords[f.id].length : 0;
+    let div=document.createElement('div');
+    div.className=`flex-shrink-0 snap-start min-w-[240px] max-w-[280px] rounded-xl border-2 p-2.5 cursor-pointer transition flex flex-col gap-1.5 ${isSel?'border-amber-500 bg-amber-50 dark:bg-amber-900/20 shadow':'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-amber-300'}`;
+    div.onclick=()=>selectFarm(f.id);
+    div.innerHTML=`
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0 ${isSel?'bg-amber-600':'bg-slate-600 dark:bg-slate-500'}"><i class="fa-solid fa-house text-xs"></i></div>
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-sm leading-none truncate flex items-center gap-1">${f.name} ${isSel?'<span class="bg-amber-600 text-white text-[9px] px-1.5 py-0.5 rounded-full">✓</span>':''}</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${f.breed} • ${f.initialBirds.toLocaleString()} ကောင်</div>
+        </div>
+        <span class="text-[10px] bg-slate-900 dark:bg-black text-white px-1.5 py-0.5 rounded-full whitespace-nowrap">${recCount}ရက်</span>
+      </div>
+      <div class="flex items-center justify-between gap-2 text-[11px] bg-white/70 dark:bg-black/20 rounded-lg px-2 py-1">
+        <span class="truncate"><span class="text-slate-400">စထည့်</span> <b>${(f.startDate||'').slice(5)}</b> <span class="text-amber-700 dark:text-amber-300">(${ageText})</span></span>
+        <span class="bg-slate-900 dark:bg-black text-amber-300 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">${curAge} <span class="text-white/60 font-normal">(${ageDays}ရက်)</span></span>
+      </div>
+    `;
+    c.appendChild(div);
+  }); } catch(e){ console.error('renderFarms error',e); c.innerHTML='<div style="background:#fee2e2;color:#991b1b;padding:12px;border-radius:12px;">Farm error: '+e.message+' <button onclick="localStorage.clear();location.reload();" style="margin-left:8px;background:#991b1b;color:white;padding:4px 8px;border-radius:8px;">Reset</button></div>'; }
+  if(selectedFarmId){
+    let f=farms.find(x=>x.id===selectedFarmId);
+    if(f){
+      bar.classList.remove('hidden');
+      main.classList.remove('hidden');
+      document.getElementById('selFarmName').textContent=f.name;
+      document.getElementById('selFarmMeta').textContent=`${f.breed} • ${f.initialBirds.toLocaleString()} ကောင် • စထည့် ${f.startDate} (${formatStartAge(f.startAgeDays)})`;
+      let diff=Math.floor((new Date(todayStr)-new Date(f.startDate))/(1000*60*60*24)); if(diff<0) diff=0;
+      let ageDays=f.startAgeDays+diff; let w=Math.floor(ageDays/7), rem=ageDays%7; let cur= rem===0? `${w} ပါတ်သား`:`${w} ပါတ် ${rem} ရက်`;
+      document.getElementById('selFarmAgeBadge').textContent=`ယနေ့ ${cur} (${ageDays} ရက်)`;
+      document.getElementById('infoName').textContent=f.name;
+      document.getElementById('infoBreed').textContent=f.breed;
+      document.getElementById('infoInitial').textContent=f.initialBirds.toLocaleString()+' ကောင်';
+      document.getElementById('infoStartDate').textContent=f.startDate;
+      document.getElementById('infoStartAge').textContent=formatStartAge(f.startAgeDays)+` (${f.startAgeDays} ရက်)`;
+      let ageDetail = `${w} ပါတ် ${rem} ရက် • ${ageDays} ရက်သား`;
+      document.getElementById('statAgeToday').textContent=cur;
+      document.getElementById('statAgeDetail').textContent=ageDetail;
+      document.getElementById('f_date').value=todayStr;
+      // restore perPage selects
+      document.getElementById('dailyPerPage').value = dailyPerPage;
+      document.getElementById('weeklyPerPage').value = weeklyPerPage;
+      switchTab(currentTab);
+    } else { showNoFarm(); }
+  } else { bar.classList.add('hidden'); main.classList.add('hidden'); }
+}
+function showNoFarm(){ document.getElementById('selectedFarmBar').classList.add('hidden'); document.getElementById('mainContent').classList.add('hidden'); }
+function formatStartAge(days){ if(days===1) return '၁ ရက်သား (မီးကိုင်)'; let w=Math.round(days/7); return `${w} ပါတ်သား`; }
+function formatAge(days){ let w=Math.floor(days/7), rem=days%7; if(rem===0) return `${w} ပါတ်သား`; return `${w}ပါတ် ${rem}ရက်`; }
+function getCurrentRecords(){ return allRecords[selectedFarmId]||[]; }
+function setCurrentRecords(arr){ allRecords[selectedFarmId]=arr; persist(); }
+function getComputed(){
+  let f=farms.find(x=>x.id===selectedFarmId);
+  if(!f) return [];
+  let recs=[...getCurrentRecords()].sort((a,b)=>a.date.localeCompare(b.date));
+  let cumulativeDead=0;
+  let out=[];
+  for(let r of recs){
+    cumulativeDead += parseInt(r.dead)||0;
+    let live=f.initialBirds - cumulativeDead;
+    if(live<0) live=0;
+    let kg = (parseFloat(r.viss)||0)*VISS_TO_KG;
+    let feedPerBird = live>0? (r.feed*1000/live):0;
+    let henDay = live>0? (r.eggs/live*100):0;
+    let trayViss = r.eggs>0? (parseFloat(r.viss)||0)/r.eggs * TRAY_SIZE : 0;
+    let trayKg = trayViss * VISS_TO_KG;
+    let diffDays = Math.floor((new Date(r.date)-new Date(f.startDate))/(1000*60*60*24));
+    let ageDays = f.startAgeDays + diffDays;
+    if(diffDays<0) ageDays=f.startAgeDays;
+    let ageWeeks = Math.ceil(ageDays/7);
+    let ageDisp = formatAge(ageDays);
+    out.push({...r, live, kg, feedPerBird, henDay, trayViss, trayKg, ageDays, ageWeeks, ageDisp, diffDays});
+  }
+  return out;
+}
+['f_feed','f_dead','f_eggs','f_viss','f_date'].forEach(id=> document.getElementById(id).addEventListener('input', updatePreview));
+function updatePreview(){
+  let f=farms.find(x=>x.id===selectedFarmId);
+  if(!f){ document.getElementById('pvFeed').textContent='-'; return; }
+  let feed=parseFloat(document.getElementById('f_feed').value)||0;
+  let eggs=parseInt(document.getElementById('f_eggs').value)||0;
+  let viss=parseFloat(document.getElementById('f_viss').value)||0;
+  let trayViss = eggs>0? viss/eggs*TRAY_SIZE : 0;
+  let date=document.getElementById('f_date').value;
+  let dead=parseInt(document.getElementById('f_dead').value)||0;
+  let deadSoFar=(allRecords[f.id]||[]).reduce((s,r)=>s+(parseInt(r.dead)||0),0);
+  let existing=(allRecords[f.id]||[]).find(r=>r.date===date);
+  if(existing) deadSoFar -= parseInt(existing.dead)||0;
+  let live=f.initialBirds - deadSoFar - dead;
+  if(live<0) live=0;
+  let feedPerBird= live>0? feed*1000/live:0;
+  let henDay= live>0? eggs/live*100:0;
+  document.getElementById('pvFeed').textContent = live>0? feedPerBird.toFixed(1)+' g':'- g';
+  document.getElementById('pvHen').textContent = live>0? henDay.toFixed(2)+' %':'- %';
+  document.getElementById('pvW').textContent = eggs>0? trayViss.toFixed(3)+' ပိဿာ':'- ပိဿာ';
+  document.getElementById('pvViss').textContent = eggs>0? `300လုံး/ဆွဲ • ${(trayViss*VISS_TO_KG).toFixed(2)} kg`: '-';
+  if(date){
+    let diff=Math.floor((new Date(date)-new Date(f.startDate))/(1000*60*60*24));
+    let ageDays=f.startAgeDays+diff;
+    document.getElementById('pvAge').textContent = formatAge(ageDays)+` (${ageDays}ရက်)`;
+  } else document.getElementById('pvAge').textContent='-';
+}
+function addEntry(e){
+  e.preventDefault();
+  let date=document.getElementById('f_date').value;
+  let feed=parseFloat(document.getElementById('f_feed').value);
+  let dead=parseInt(document.getElementById('f_dead').value)||0;
+  let eggs=parseInt(document.getElementById('f_eggs').value);
+  let viss=parseFloat(document.getElementById('f_viss').value);
+  let medicine=document.getElementById('f_medicine').value.trim();
+  let note=document.getElementById('f_note').value.trim();
+  let recs=getCurrentRecords();
+  if(editingEntryDate){
+    recs=recs.filter(r=>r.date!==editingEntryDate && r.date!==date);
+    editingEntryDate=null;
+    resetEntryFormUI();
+  }else if(recs.some(r=>r.date===date)){
+    if(!confirm(date+' ရက်အတွက် မှတ်တမ်းရှိနေသည်။ အစားထိုးမလား?')) return;
+    recs=recs.filter(r=>r.date!==date);
+  }
+  recs.push({date, feed, dead, eggs, viss, medicine, note});
+  recs.sort((a,b)=>a.date.localeCompare(b.date));
+  setCurrentRecords(recs);
+  e.target.reset();
+  document.getElementById('f_date').value=todayStr;
+  document.getElementById('f_dead').value=0;
+  dailyPage=1; // show newest first
+  updatePreview(); renderAll();
+}function deleteEntry(date){
+  if(!confirm(date+' ရက်စာဖျက်မလား?')) return;
+  let recs=getCurrentRecords().filter(r=>r.date!==date);
+  setCurrentRecords(recs); renderAll();
+}
+function editEntry(date){
+  let r=getCurrentRecords().find(x=>x.date===date);
+  if(!r) return;
+  editingEntryDate=date;
+  document.getElementById('f_date').value=r.date;
+  document.getElementById('f_feed').value=r.feed;
+  document.getElementById('f_dead').value=r.dead;
+  document.getElementById('f_eggs').value=r.eggs;
+  document.getElementById('f_viss').value=r.viss;
+  document.getElementById('f_medicine').value=r.medicine||'';
+  document.getElementById('f_note').value=r.note||'';
+  let f=document.getElementById('entryForm');
+  f.classList.add('ring-2','ring-amber-400');
+  document.getElementById('entrySubmitBtn').innerHTML='<i class="fa-solid fa-floppy-disk"></i> ပြင်မည်';
+  document.getElementById('entryCancelBtn').classList.remove('hidden');
+  updatePreview();
+  f.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function resetEntryFormUI(){
+  let f=document.getElementById('entryForm'); if(!f) return;
+  f.classList.remove('ring-2','ring-amber-400');
+  document.getElementById('entrySubmitBtn').innerHTML='<i class="fa-solid fa-plus"></i> ထည့်မည်';
+  document.getElementById('entryCancelBtn').classList.add('hidden');
+}
+function cancelEntryEdit(){
+  editingEntryDate=null;
+  let f=document.getElementById('entryForm');
+  if(f) f.reset();
+  document.getElementById('f_date').value=todayStr;
+  document.getElementById('f_dead').value=0;
+  resetEntryFormUI();
+  updatePreview();
+}function clearFarmRecords(){
+  if(!confirm('ဤခြံ၏ မှတ်တမ်းအားလုံး ဖျက်မလား?')) return;
+  setCurrentRecords([]); dailyPage=1; weeklyPage=1; renderAll();
+}
+function renderAll(){
+  renderTable(); renderWeekly(); renderKPIs(); renderFinance();
+  // init chart selectors if needed
+  let ySel=document.getElementById('chartYear');
+  if(ySel && ySel.options.length===0) initChartSelectors();
+  else if(ySel && ySel.value){
+    // if current month has no data but new data added, keep selection; init if empty
+    let computed=getComputed();
+    let years=[...new Set(computed.map(r=> parseInt(r.date.slice(0,4))))].sort((a,b)=>a-b);
+    let hasYear=years.includes(parseInt(ySel.value));
+    if(!hasYear && years.length) ySel.value=years[years.length-1];
+  }
+  renderChart();
+  updatePreview(); switchTab(currentTab);
+}
+
+function resetDailyPage(){ dailyPage=1; }
+function changeDailyPerPage(){ dailyPerPage=parseInt(document.getElementById('dailyPerPage').value); localStorage.setItem('layer_dailyPerPage_v4', dailyPerPage); dailyPage=1; renderTable(); }
+function changeWeeklyPerPage(){ weeklyPerPage=parseInt(document.getElementById('weeklyPerPage').value); localStorage.setItem('layer_weeklyPerPage_v4', weeklyPerPage); weeklyPage=1; renderWeekly(); }
+function goDailyPage(p){ dailyPage=p; renderTable(); document.getElementById('dailySection').scrollIntoView({behavior:'smooth', block:'start'}); }
+function goWeeklyPage(p){ weeklyPage=p; renderWeekly(); document.getElementById('weeklySection').scrollIntoView({behavior:'smooth', block:'start'}); }
+
+function buildPagination(current, total, onClickFn){
+  if(total<=1) return '';
+  let html='';
+  const maxBtns=5;
+  html+=`<button onclick="${onClickFn}(${Math.max(1,current-1)})" ${current===1?'disabled':''} class="w-8 h-8 rounded-lg border dark:border-slate-600 flex items-center justify-center ${current===1?'opacity-40 cursor-not-allowed':'hover:bg-slate-100 dark:hover:bg-slate-700'}"><i class="fa-solid fa-chevron-left text-xs"></i></button>`;
+  let start=Math.max(1, current-Math.floor(maxBtns/2));
+  let end=Math.min(total, start+maxBtns-1);
+  if(end-start+1<maxBtns) start=Math.max(1, end-maxBtns+1);
+  if(start>1){
+    html+=`<button onclick="${onClickFn}(1)" class="min-w-8 h-8 px-2 rounded-lg border dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold">1</button>`;
+    if(start>2) html+=`<span class="px-1 text-slate-400">…</span>`;
+  }
+  for(let i=start;i<=end;i++){
+    if(i===current) html+=`<button class="min-w-8 h-8 px-2 rounded-lg bg-amber-600 text-white font-bold text-xs">${i}</button>`;
+    else html+=`<button onclick="${onClickFn}(${i})" class="min-w-8 h-8 px-2 rounded-lg border dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold">${i}</button>`;
+  }
+  if(end<total){
+    if(end<total-1) html+=`<span class="px-1 text-slate-400">…</span>`;
+    html+=`<button onclick="${onClickFn}(${total})" class="min-w-8 h-8 px-2 rounded-lg border dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold">${total}</button>`;
+  }
+  html+=`<button onclick="${onClickFn}(${Math.min(total,current+1)})" ${current===total?'disabled':''} class="w-8 h-8 rounded-lg border dark:border-slate-600 flex items-center justify-center ${current===total?'opacity-40 cursor-not-allowed':'hover:bg-slate-100 dark:hover:bg-slate-700'}"><i class="fa-solid fa-chevron-right text-xs"></i></button>`;
+  return html;
+}
+
+function renderTable(){
+  let f=farms.find(x=>x.id===selectedFarmId);
+  if(!f) return;
+  let computed=getComputed();
+  let filter=document.getElementById('searchDate').value;
+  let filtered= filter? computed.filter(r=>r.date===filter): computed;
+  // sort newest first
+  let sorted=[...filtered].sort((a,b)=> b.date.localeCompare(a.date));
+  let total=sorted.length;
+  let totalPages=Math.max(1, Math.ceil(total/dailyPerPage));
+  if(dailyPage>totalPages) dailyPage=totalPages;
+  if(dailyPage<1) dailyPage=1;
+  let startIdx=(dailyPage-1)*dailyPerPage;
+  let pageRows=sorted.slice(startIdx, startIdx+dailyPerPage);
+
+  let tbody=document.getElementById('dailyBody');
+  let foot=document.getElementById('dailyFoot');
+  let empty=document.getElementById('emptyMsg');
+  tbody.innerHTML='';
+  // badges
+  document.getElementById('badgeDaily').textContent= computed.length + ' ရက်';
+  document.getElementById('badgeWeekly').textContent= Object.keys(groupWeekly(computed)).length + ' ပတ်';
+
+  if(sorted.length===0){
+    empty.classList.remove('hidden'); foot.innerHTML='';
+    document.getElementById('dailyInfo').textContent='';
+    document.getElementById('dailyPageInfo').textContent='';
+    document.getElementById('dailyPagination').innerHTML='';
+    document.getElementById('dailyPaginationBottom').innerHTML='';
+  } else {
+    empty.classList.add('hidden');
+    for(let r of pageRows){
+      let tr=document.createElement('tr');
+      tr.className='hover:bg-amber-50/60 dark:hover:bg-slate-700/40';
+      tr.innerHTML=`
+        <td class="px-2 py-2.5 font-bold whitespace-nowrap text-xs">${r.date}</td>
+        <td class="px-2 py-2.5 text-center whitespace-nowrap"><span class="bg-slate-900 dark:bg-black text-white px-2 py-1 rounded-full text-[11px] font-bold">${r.ageDisp}</span><div class="text-[10px] text-slate-500 dark:text-slate-400">${r.ageDays}ရက်</div></td>
+        <td class="px-2 py-2.5 text-center font-bold">${r.live.toLocaleString()}</td>
+        <td class="px-2 py-2.5 text-center ${r.dead>0?'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-bold':''}">${r.dead}</td>
+        <td class="px-2 py-2.5 text-center bg-amber-50 dark:bg-amber-900/20">${r.feed.toFixed(2)}</td>
+        <td class="px-2 py-2.5 text-center bg-amber-50 dark:bg-amber-900/20 font-bold text-amber-700 dark:text-amber-300">${r.feedPerBird.toFixed(1)}</td>
+        <td class="px-2 py-2.5 text-center bg-orange-50 dark:bg-orange-900/20 font-bold">${r.eggs.toLocaleString()}</td>
+        <td class="px-2 py-2.5 text-center bg-orange-50 dark:bg-orange-900/20 font-bold ${r.henDay>=80?'text-emerald-600 dark:text-emerald-400':r.henDay<60?'text-red-600 dark:text-red-400':'text-orange-600'}">${r.henDay.toFixed(2)}%</td>
+        <td class="px-2 py-2.5 text-center bg-emerald-50 dark:bg-emerald-900/20 font-bold text-emerald-700 dark:text-emerald-300">${r.viss.toFixed(2)}</td>
+        <td class="px-2 py-2.5 text-center bg-emerald-50 dark:bg-emerald-900/20 font-bold text-emerald-700 dark:text-emerald-300">${r.trayViss.toFixed(3)}</td>
+        <td class="px-2 py-2.5 text-xs max-w-[120px] truncate" title="${r.medicine||''}">${r.medicine||'-'}</td>
+        <td class="px-2 py-2.5 text-xs max-w-[120px] truncate" title="${r.note||''}">${r.note||'-'}</td>
+        <td class="px-2 py-2.5 text-center no-print">
+          <button onclick="editEntry('${r.date}')" class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 mr-1"><i class="fa-solid fa-pen text-[11px]"></i></button>
+          <button onclick="deleteEntry('${r.date}')" class="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100"><i class="fa-solid fa-trash text-[11px]"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    let totals=filtered.reduce((a,r)=>({feed:a.feed+r.feed, eggs:a.eggs+r.eggs, viss:a.viss+r.viss}),{feed:0,eggs:0,viss:0});
+    let avgFeed=filtered.length? filtered.reduce((s,r)=>s+r.feedPerBird,0)/filtered.length:0;
+    let avgHen=filtered.length? filtered.reduce((s,r)=>s+r.henDay,0)/filtered.length:0;
+    let avgTray=filtered.length? filtered.reduce((s,r)=>s+r.trayViss,0)/filtered.length:0;
+    let totalDead=filtered.reduce((s,r)=>s+r.dead,0);
+    foot.innerHTML=`
+      <td class="px-2 py-2">စုစုပေါင်း/ပျမ်းမျှ (${filtered.length} ရက်)</td>
+      <td class="px-2 py-2 text-center">-</td>
+      <td class="px-2 py-2 text-center">-</td>
+      <td class="px-2 py-2 text-center text-red-700 dark:text-red-300">${totalDead}</td>
+      <td class="px-2 py-2 text-center">${totals.feed.toFixed(2)}</td>
+      <td class="px-2 py-2 text-center">${avgFeed.toFixed(1)}</td>
+      <td class="px-2 py-2 text-center">${totals.eggs.toLocaleString()}</td>
+      <td class="px-2 py-2 text-center">${avgHen.toFixed(2)}%</td>
+      <td class="px-2 py-2 text-center">${totals.viss.toFixed(2)}</td>
+      <td class="px-2 py-2 text-center">${avgTray.toFixed(3)}</td>
+      <td class="px-2 py-2"></td><td class="px-2 py-2"></td><td class="px-2 py-2 no-print"></td>
+    `;
+    // pagination UI
+    let info=`${total===0?0:startIdx+1}–${Math.min(startIdx+dailyPerPage, total)} / ${total} ရက်`;
+    document.getElementById('dailyInfo').textContent=info;
+    document.getElementById('dailyPageInfo').textContent=`စာမျက်နှာ ${dailyPage} / ${totalPages} • ${total} ရက်လုံး`;
+    let pagHtml=buildPagination(dailyPage, totalPages, 'goDailyPage');
+    document.getElementById('dailyPagination').innerHTML=pagHtml;
+    document.getElementById('dailyPaginationBottom').innerHTML=pagHtml;
+  }
+  let all=getComputed();
+  let lastLive=all.length? all[all.length-1].live: f.initialBirds;
+  let totalDead=all.reduce((s,r)=>s+r.dead,0);
+  document.getElementById('statLive').textContent=lastLive.toLocaleString();
+  document.getElementById('statDead').textContent=totalDead.toLocaleString();
+  document.getElementById('statMort').textContent=(totalDead/f.initialBirds*100).toFixed(2)+'%';
+}
+
+function groupWeekly(computed){
+  let groups={};
+  for(let r of computed){ let wk=r.ageWeeks; (groups[wk]=groups[wk]||[]).push(r); }
+  return groups;
+}
+
+function renderWeekly(){
+  let computed=getComputed();
+  let groups=groupWeekly(computed);
+  let weeks=Object.keys(groups).sort((a,b)=> parseInt(b)-parseInt(a)); // newest week first
+  let total=weeks.length;
+  let totalPages=Math.max(1, Math.ceil(total/weeklyPerPage));
+  if(weeklyPage>totalPages) weeklyPage=totalPages;
+  if(weeklyPage<1) weeklyPage=1;
+  let startIdx=(weeklyPage-1)*weeklyPerPage;
+  let pageWeeks=weeks.slice(startIdx, startIdx+weeklyPerPage);
+
+  let tbody=document.getElementById('weeklyBody');
+  let empty=document.getElementById('weeklyEmpty');
+  tbody.innerHTML='';
+  document.getElementById('badgeWeekly').textContent= total + ' ပတ်';
+  document.getElementById('badgeDaily').textContent= computed.length + ' ရက်';
+
+  if(total===0){ empty.classList.remove('hidden'); document.getElementById('weeklyInfo').textContent=''; document.getElementById('weeklyPageInfo').textContent=''; document.getElementById('weeklyPagination').innerHTML=''; document.getElementById('weeklyPaginationBottom').innerHTML=''; return; }
+  empty.classList.add('hidden');
+  for(let wk of pageWeeks){
+    let arr=groups[wk];
+    let start=arr[0].date, end=arr[arr.length-1].date, days=arr.length;
+    let avgLive=arr.reduce((s,r)=>s+r.live,0)/days;
+    let totalDead=arr.reduce((s,r)=>s+r.dead,0);
+    let totalFeed=arr.reduce((s,r)=>s+r.feed,0);
+    let avgFeed=arr.reduce((s,r)=>s+r.feedPerBird,0)/days;
+    let totalEggs=arr.reduce((s,r)=>s+r.eggs,0);
+    let avgHen=arr.reduce((s,r)=>s+r.henDay,0)/days;
+    let totalViss=arr.reduce((s,r)=>s+r.viss,0);
+    let avgTray = arr.length? arr.reduce((s,r)=>s+r.trayViss,0)/arr.length : 0;
+    let totalKg=arr.reduce((s,r)=>s+r.kg,0);
+    let fcr=totalKg>0? totalFeed/totalKg:0;
+    let tr=document.createElement('tr');
+    tr.className='hover:bg-slate-50 dark:hover:bg-slate-700/40';
+    tr.innerHTML=`
+      <td class="px-3 py-3 font-bold whitespace-nowrap bg-amber-50 dark:bg-amber-900/20">${wk} ပါတ်သား</td>
+      <td class="px-3 py-3 text-center text-xs whitespace-nowrap">${start} ~ ${end}</td>
+      <td class="px-3 py-3 text-center">${days}</td>
+      <td class="px-3 py-3 text-center font-bold">${Math.round(avgLive).toLocaleString()}</td>
+      <td class="px-3 py-3 text-center ${totalDead>0?'text-red-600 dark:text-red-400 font-bold':''}">${totalDead}</td>
+      <td class="px-3 py-3 text-center">${totalFeed.toFixed(2)}</td>
+      <td class="px-3 py-3 text-center font-bold text-amber-700 dark:text-amber-300">${avgFeed.toFixed(1)}</td>
+      <td class="px-3 py-3 text-center bg-amber-50 dark:bg-amber-900/20 font-bold">${totalEggs.toLocaleString()}</td>
+      <td class="px-3 py-3 text-center bg-amber-50 dark:bg-amber-900/20 font-bold ${avgHen>=80?'text-emerald-600 dark:text-emerald-400':avgHen<60?'text-red-600':'text-amber-700'}">${avgHen.toFixed(2)}%</td>
+      <td class="px-3 py-3 text-center bg-emerald-50 dark:bg-emerald-900/20 font-bold">${totalViss.toFixed(2)}</td>
+      <td class="px-3 py-3 text-center bg-emerald-50 dark:bg-emerald-900/20 font-bold text-emerald-700 dark:text-emerald-300">${avgTray.toFixed(3)}</td>
+      <td class="px-3 py-3 text-center font-bold ${fcr>2.3?'text-red-600':fcr<2?'text-emerald-600':''}">${fcr?fcr.toFixed(2):'-'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  let info=`${total===0?0:startIdx+1}–${Math.min(startIdx+weeklyPerPage, total)} / ${total} ပတ်`;
+  document.getElementById('weeklyInfo').textContent=info;
+  document.getElementById('weeklyPageInfo').textContent=`စာမျက်နှာ ${weeklyPage} / ${totalPages} • ${total} ပတ်လုံး`;
+  let pagHtml=buildPagination(weeklyPage, totalPages, 'goWeeklyPage');
+  document.getElementById('weeklyPagination').innerHTML=pagHtml;
+  document.getElementById('weeklyPaginationBottom').innerHTML=pagHtml;
+}
+
+let chart;
+function renderKPIs(){
+  let computed=getComputed();
+  if(computed.length===0){
+    document.getElementById('kpiFeed').innerHTML='0 <span class="text-sm font-normal text-slate-500">g</span>';
+    document.getElementById('kpiHen').innerHTML='0 <span class="text-sm font-normal text-slate-500">%</span>';
+    document.getElementById('kpiEggW').innerHTML='0 <span class="text-sm font-normal text-slate-500">ပိဿာ</span>';
+    document.getElementById('kpiTotalEggs').textContent='0';
+    document.getElementById('kpiViss').textContent='0 ပိဿာ';
+    return;
+  }
+  let last7=computed.slice(-7);
+  let avgFeed=last7.reduce((s,r)=>s+r.feedPerBird,0)/last7.length;
+  let avgHen=last7.reduce((s,r)=>s+r.henDay,0)/last7.length;
+  let totalEggs=computed.reduce((s,r)=>s+r.eggs,0);
+  let totalViss=computed.reduce((s,r)=>s+r.viss,0);
+  let totalKg=computed.reduce((s,r)=>s+r.kg,0);
+  let avgTray = last7.reduce((s,r)=>s+r.trayViss,0)/last7.length;
+  document.getElementById('kpiFeed').innerHTML=avgFeed.toFixed(1)+' <span class="text-sm font-normal text-slate-500">g</span>';
+  document.getElementById('kpiHen').innerHTML=avgHen.toFixed(2)+' <span class="text-sm font-normal text-slate-500">%</span>';
+  document.getElementById('kpiEggW').innerHTML=avgTray.toFixed(3)+' <span class="text-sm font-normal text-slate-500">ပိဿာ</span>';
+  document.getElementById('kpiTotalEggs').textContent=totalEggs.toLocaleString();
+  document.getElementById('kpiViss').textContent=totalViss.toFixed(2)+' ပိဿာ ('+totalKg.toFixed(1)+' kg)';
+}
+
+function initChartSelectors(){
+  let ySel=document.getElementById('chartYear');
+  let mSel=document.getElementById('chartMonth');
+  let now=new Date();
+  let years=new Set();
+  let computed=getComputed();
+  computed.forEach(r=> years.add(parseInt(r.date.slice(0,4))));
+  years.add(now.getFullYear());
+  // add next year also for future
+  let ys0=[...years].sort((a,b)=>a-b);
+  for(let y=ys0[0]; y<=ys0[ys0.length-1]+1; y++) if(!years.has(y)) years.add(y);
+  let ys=[...years].sort((a,b)=>a-b);
+  ySel.innerHTML='';
+  ys.forEach(y=>{
+    let o=document.createElement('option'); o.value=y; o.textContent=y+' ခုနှစ်'; ySel.appendChild(o);
+  });
+  // default to latest year with data or current
+  let latestYear = computed.length? parseInt(computed[computed.length-1].date.slice(0,4)) : now.getFullYear();
+  ySel.value=latestYear;
+  let latestMonth = computed.length? parseInt(computed[computed.length-1].date.slice(5,7)) : now.getMonth()+1;
+  mSel.value=latestMonth;
+}
+
+function renderChart(){
+  if(typeof Chart==='undefined'){ console.warn('Chart.js not loaded'); return; }
+  let ySel=document.getElementById('chartYear');
+  let mSel=document.getElementById('chartMonth');
+  if(!ySel || !mSel) return;
+  let year=parseInt(ySel.value);
+  let month=parseInt(mSel.value);
+  let isDark=document.documentElement.classList.contains('dark');
+  let computed=getComputed();
+  // build map date->record
+  let map={};
+  computed.forEach(r=> map[r.date]=r);
+  let daysInMonth=new Date(year, month, 0).getDate();
+  let labels=[], henData=[], trayData=[];
+  for(let d=1; d<=daysInMonth; d++){
+    let ds=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    labels.push(String(d));
+    let r=map[ds];
+    if(r){
+      henData.push(+r.henDay.toFixed(2));
+      trayData.push(+r.trayViss.toFixed(3));
+    } else {
+      henData.push(null);
+      trayData.push(null);
+    }
+  }
+  let ctx=document.getElementById('weekChart');
+  if(chart) chart.destroy();
+  // if no data at all, still show empty
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'ဥနှုန်း %', data:henData, yAxisID:'y', borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.08)', borderWidth:2.5, tension:0.35, pointRadius: henData.filter(v=>v!==null).length>25?0:3, pointBackgroundColor:'#f59e0b', spanGaps:true, fill:false},
+        {label:'၁ဆွဲ(၃၀၀) ပိဿာ', data:trayData, yAxisID:'y1', borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.08)', borderWidth:2.5, tension:0.35, pointRadius: trayData.filter(v=>v!==null).length>25?0:3, pointBackgroundColor:'#10b981', spanGaps:true, fill:false}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{legend:{labels:{boxWidth:14, boxHeight:3, usePointStyle:true, pointStyle:'line', font:{family:'Padauk'}, color:isDark?'#e2e8f0':'#334155'}}},
+      scales:{
+        y:{
+          min:70, max:100,
+          title:{display:true, text:'ဥနှုန်း %', color:isDark?'#cbd5e1':'#475569', font:{weight:'bold'}},
+          ticks:{stepSize:5, color:isDark?'#94a3b8':'#64748b', callback: v=> [70,75,80,85,90,95,100].includes(v)? v : ''},
+          grid:{color:isDark?'#334155':'#e2e8f0'},
+          border:{color:isDark?'#475569':'#cbd5e1'}
+        },
+        y1:{
+          position:'right',
+          title:{display:true, text:'ပိဿာ/ဆွဲ (300)', color:isDark?'#6ee7b7':'#059669', font:{weight:'bold'}},
+          ticks:{color:isDark?'#6ee7b7':'#059669'},
+          grid:{display:false},
+          border:{color:isDark?'#065f46':'#a7f3d0'}
+        },
+        x:{
+          title:{display:true, text:'ရက်', color:isDark?'#cbd5e1':'#475569'},
+          ticks:{color:isDark?'#94a3b8':'#64748b', maxRotation:0, autoSkip:true, maxTicksLimit:15},
+          grid:{color:isDark?'#1e293b':'#f1f5f9'}
+        }
+      }
+    }
+  });
+}
+function exportCSV(){
+  let computed=getComputed();
+  let f=farms.find(x=>x.id===selectedFarmId);
+  if(!f) return alert('ခြံ ရွေးပါ');
+  if(computed.length===0) return alert('Export လုပ်ရန် မှတ်တမ်းမရှိပါ');
+  let rows=[...computed].sort((a,b)=> b.date.localeCompare(a.date)).map(r=>[r.date, r.ageDisp, r.ageDays, r.live, r.dead, r.feed.toFixed(2), r.feedPerBird.toFixed(1), r.eggs, r.henDay.toFixed(2), r.viss.toFixed(2), r.trayViss.toFixed(3), `"${(r.medicine||'').replace(/"/g,'""')}"`, `"${(r.note||'').replace(/"/g,'""')}"`]);
+  rows.push([]); rows.push(['အပတ်စဥ် အစီရင်ခံစာ (ကြက်သက်ပါတ် အလိုက် - နောက်ဆုံးအပတ်အပေါ်ဆုံး)']); rows.push(['ပါတ်သား','ရက်အပိုင်းအခြား','ရက်ပေါင်း','ပျမ်းမျှကျန်','စုသေ','စုအစာ(kg)','၁ကောင်အစာ(g)','စုဥ','ဥနှုန်း%','စုဥဝိတ်(ပိဿာ)','ပျမ်းမျှ၁ဆွဲ(၃၀၀)ပိဿာ','FCR']);
+  let groups={}; computed.forEach(r=> (groups[r.ageWeeks]=groups[r.ageWeeks]||[]).push(r));
+  Object.keys(groups).sort((a,b)=>b-a).forEach(wk=>{
+    let arr=groups[wk]; let days=arr.length, start=arr[0].date, end=arr[arr.length-1].date;
+    let avgLive=Math.round(arr.reduce((s,r)=>s+r.live,0)/days);
+    let totalDead=arr.reduce((s,r)=>s+r.dead,0);
+    let totalFeed=arr.reduce((s,r)=>s+r.feed,0);
+    let avgFeed=arr.reduce((s,r)=>s+r.feedPerBird,0)/days;
+    let totalEggs=arr.reduce((s,r)=>s+r.eggs,0);
+    let avgHen=arr.reduce((s,r)=>s+r.henDay,0)/days;
+    let totalViss=arr.reduce((s,r)=>s+r.viss,0);
+    let avgTray=arr.reduce((s,r)=>s+r.trayViss,0)/arr.length;
+    let totalKg=arr.reduce((s,r)=>s+r.kg,0);
+    let fcr=totalKg>0? totalFeed/totalKg:0;
+    rows.push([`${wk} ပါတ်သား`, `${start} ~ ${end}`, days, avgLive, totalDead, totalFeed.toFixed(2), avgFeed.toFixed(1), totalEggs, avgHen.toFixed(2), totalViss.toFixed(2), avgTray.toFixed(3), fcr.toFixed(2)]);
+  });
+  // finance section
+  rows.push([]); rows.push(['ဝင်ငွေ / ကုန်ကျစရိတ် (လချုပ်)']);
+  rows.push(['လ','ဥအရောင်း(ဆွဲ)','ဥအရောင်း(လုံး)','ဥအရောင်း(ပိဿာ)','ဝင်ငွေ(ကျပ်)','ကြက်စာ','ဆေးဖိုး','ခြံငှားခ','လုပ်အားခ','အထွေထွေ','စုကုန်(ကျပ်)','အမြတ်(ကျပ်)']);
+  let fmonths=groupFinanceByMonth();
+  Object.keys(fmonths).sort().forEach(mk=>{
+    let g=fmonths[mk];
+    let profit=g.income-g.expense;
+    rows.push([mk, g.trays.toFixed(2), Math.round(g.trays*TRAY_SIZE + g.looseEggs), g.viss.toFixed(2), g.income.toFixed(0), g.feed.toFixed(0), g.medicine.toFixed(0), g.rent.toFixed(0), g.labor.toFixed(0), g.other.toFixed(0), g.expense.toFixed(0), profit.toFixed(0)]);
+  });
+  let csv=[header.join(',')].concat(rows.map(r=>r.join(','))).join('\n');
+  let blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  let url=URL.createObjectURL(blob);
+  let a=document.createElement('a');
+  a.href=url; a.download=`${f.name}_Daily_Record_${todayStr}.csv`; a.click(); URL.revokeObjectURL(url);
+}
+// ============ FINANCE (Sales & Expenses) ============
+function getCurrentSales(){ return allSales[selectedFarmId]||[]; }
+function setCurrentSales(arr){ allSales[selectedFarmId]=arr; persist(); }
+function getCurrentExpenses(){ return allExpenses[selectedFarmId]||[]; }
+function setCurrentExpenses(arr){ allExpenses[selectedFarmId]=arr; persist(); }
+function avgTrayVissUpTo(dateStr){
+  let computed=getComputed();
+  let recs=computed.filter(r=>r.date<=dateStr && r.eggs>0);
+  if(recs.length===0) recs=computed.filter(r=>r.eggs>0);
+  if(recs.length===0) return 0;
+  return recs[recs.length-1].trayViss || 0;
+}
+const MODE_LABEL={tray:'ဆွဲ', count:'လုံး', viss:'ပိဿာ'};
+function fmtN(n,d=2){ return (+n||0).toLocaleString(undefined,{maximumFractionDigits:d}); }
+function normDigits(s){ return String(s==null?'':s).replace(/[၀-၉]/g, d=>'၀၁၂၃၄၅၆၇၈၉'.indexOf(d)); }
+function parseSaleDesc(desc){
+  let s=normDigits(desc);
+  let trays=0, loose=0;
+  (s.match(/\d+(?:\.\d+)?\s*ဆွဲ/g)||[]).forEach(x=>trays+=parseFloat(x));
+  (s.match(/\d+(?:\.\d+)?\s*လုံး/g)||[]).forEach(x=>loose+=parseFloat(x));
+  return {trays, loose, eggs: trays*TRAY_SIZE+loose};
+}
+function saleAutoAmount(){
+  sAmountManual=false;
+  let v=parseFloat(document.getElementById('s_viss').value)||0;
+  let p=parseFloat(document.getElementById('s_price').value)||0;
+  if(v>0&&p>0) document.getElementById('s_amount').value=+(v*p).toFixed(2);
+}
+function expAutoAmount(){
+  eAmountManual=false;
+  let q=parseFloat(document.getElementById('e_qty').value)||0;
+  let p=parseFloat(document.getElementById('e_price').value)||0;
+  if(q>0&&p>0) document.getElementById('e_amount').value=+(q*p).toFixed(2);
+}
+function updateSalePreview(){ saleAutoAmount(); }function addSale(e){
+  e.preventDefault();
+  let date=document.getElementById('s_date').value;
+  let desc=document.getElementById('s_desc').value.trim();
+  let viss=parseFloat(document.getElementById('s_viss').value);
+  let price=parseFloat(document.getElementById('s_price').value)||null;
+  let amount=parseFloat(document.getElementById('s_amount').value);
+  let buyer=document.getElementById('s_buyer').value.trim();
+  if(!date||!desc||!(viss>0)||!(amount>0)) return alert('နေ့စွဲ၊ အဆွဲ/အရေ၊ ပိဿာ၊ သင့်ငွေ ဖြည့်ပါ');
+  let sales=getCurrentSales();
+  if(editingSaleId){
+    let s=sales.find(x=>x.id===editingSaleId);
+    if(s) Object.assign(s,{date,desc,viss,price,amount,buyer});
+    editingSaleId=null;
+  }else{
+    sales.push({id:'sale_'+Date.now()+'_'+Math.floor(Math.random()*9999), date, desc, viss, price, amount, buyer});
+  }
+  sales.sort((a,b)=>b.date.localeCompare(a.date));
+  setCurrentSales(sales);
+  cancelSaleEdit();
+  renderFinance();
+}
+function deleteSale(id){
+  if(!confirm('ဤအရောင်းမှတ်တမ်း ဖျက်မလား?')) return;
+  if(editingSaleId===id) cancelSaleEdit();
+  setCurrentSales(getCurrentSales().filter(s=>s.id!==id)); renderFinance();
+}
+function editSale(id){
+  closeMonthModal();
+  let s=getCurrentSales().find(x=>x.id===id); if(!s) return;
+  editingSaleId=id;
+  document.getElementById('s_date').value=s.date;
+  document.getElementById('s_desc').value=s.desc||'';
+  document.getElementById('s_viss').value=(s.viss!=null? s.viss:'');
+  document.getElementById('s_price').value=(s.price!=null? s.price:'');
+  document.getElementById('s_amount').value=(s.amount!=null? s.amount:'');
+  document.getElementById('s_buyer').value=s.buyer||'';
+  sAmountManual=true;
+  let f=document.getElementById('saleForm');
+  f.classList.add('ring-2','ring-emerald-400');
+  document.getElementById('s_submitBtn').innerHTML='<i class="fa-solid fa-floppy-disk"></i> ပြင်မည်';
+  document.getElementById('s_cancelBtn').classList.remove('hidden');
+  switchTab('finance');
+  f.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function resetSaleFormUI(){
+  let f=document.getElementById('saleForm'); if(!f) return;
+  f.classList.remove('ring-2','ring-emerald-400');
+  document.getElementById('s_submitBtn').innerHTML='<i class="fa-solid fa-plus"></i> ထည့်မည်';
+  document.getElementById('s_cancelBtn').classList.add('hidden');
+}
+function cancelSaleEdit(){
+  editingSaleId=null; sAmountManual=false;
+  let f=document.getElementById('saleForm');
+  if(f){ f.reset(); }
+  document.getElementById('s_date').value=todayStr;
+  resetSaleFormUI();
+}function addExpense(e){
+  e.preventDefault();
+  let date=document.getElementById('e_date').value;
+  let type=document.getElementById('e_type').value;
+  let name=document.getElementById('e_name').value.trim();
+  let qty=parseFloat(document.getElementById('e_qty').value)||null;
+  let price=parseFloat(document.getElementById('e_price').value)||null;
+  let amount=parseFloat(document.getElementById('e_amount').value);
+  let note=document.getElementById('e_note').value.trim();
+  if(!date||!(amount>0)) return alert('နေ့စွဲနှင့် သင့်ငွေ ဖြည့်ပါ');
+  let exps=getCurrentExpenses();
+  if(editingExpId){
+    let x=exps.find(v=>v.id===editingExpId);
+    if(x) Object.assign(x,{date,type,name,qty,price,amount,note});
+    editingExpId=null;
+  }else{
+    exps.push({id:'exp_'+Date.now()+'_'+Math.floor(Math.random()*9999), date, type, name, qty, price, amount, note});
+  }
+  exps.sort((a,b)=>b.date.localeCompare(a.date));
+  setCurrentExpenses(exps);
+  cancelExpEdit();
+  renderFinance();
+}
+function deleteExpense(id){
+  if(!confirm('ဤကုန်ကျစရိတ် ဖျက်မလား?')) return;
+  if(editingExpId===id) cancelExpEdit();
+  setCurrentExpenses(getCurrentExpenses().filter(x=>x.id!==id)); renderFinance();
+}
+function editExpense(id){
+  closeMonthModal();
+  let x=getCurrentExpenses().find(v=>v.id===id); if(!x) return;
+  editingExpId=id;
+  document.getElementById('e_date').value=x.date;
+  document.getElementById('e_type').value=x.type||'other';
+  document.getElementById('e_name').value=x.name||'';
+  document.getElementById('e_qty').value=(x.qty!=null? x.qty:'');
+  document.getElementById('e_price').value=(x.price!=null? x.price:'');
+  document.getElementById('e_amount').value=(x.amount!=null? x.amount:'');
+  document.getElementById('e_note').value=x.note||'';
+  eAmountManual=true;
+  let f=document.getElementById('expenseForm');
+  f.classList.add('ring-2','ring-red-400');
+  document.getElementById('e_submitBtn').innerHTML='<i class="fa-solid fa-floppy-disk"></i> ပြင်မည်';
+  document.getElementById('e_cancelBtn').classList.remove('hidden');
+  switchTab('finance');
+  f.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function resetExpFormUI(){
+  let f=document.getElementById('expenseForm'); if(!f) return;
+  f.classList.remove('ring-2','ring-red-400');
+  document.getElementById('e_submitBtn').innerHTML='<i class="fa-solid fa-plus"></i> ထည့်မည်';
+  document.getElementById('e_cancelBtn').classList.add('hidden');
+}
+function cancelExpEdit(){
+  editingExpId=null; eAmountManual=false;
+  let f=document.getElementById('expenseForm');
+  if(f){ f.reset(); }
+  document.getElementById('e_date').value=todayStr;
+  resetExpFormUI();
+}function groupFinanceByMonth(){
+  let g={};
+  let sales=getCurrentSales();
+  let exps=getCurrentExpenses();
+  sales.forEach(s=>{
+    let mk=s.date.slice(0,7);
+    let m=g[mk]=g[mk]||{trays:0, looseEggs:0, viss:0, income:0, feed:0, medicine:0, rent:0, labor:0, other:0, expense:0, sales:[], exps:[]};
+    m.sales.push(s);
+    m.income += +s.amount||0;
+    let p=parseSaleDesc(s.desc);
+    m.trays += p.trays;
+    m.looseEggs += p.loose;
+    m.viss += +s.viss||0;
+  });
+  exps.forEach(x=>{
+    let mk=x.date.slice(0,7);
+    let m=g[mk]=g[mk]||{trays:0, looseEggs:0, viss:0, income:0, feed:0, medicine:0, rent:0, labor:0, other:0, expense:0, sales:[], exps:[]};
+    m.exps.push(x);
+    m[x.type] += +x.amount||0;
+    m.expense += +x.amount||0;
+  });
+  return g;
+}function renderFinance(){
+  let tbody=document.getElementById('financeBody');
+  let foot=document.getElementById('financeFoot');
+  let empty=document.getElementById('financeEmpty');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  let sales=getCurrentSales();
+  let exps=getCurrentExpenses();
+  document.getElementById('badgeFinance').textContent = (new Set([...sales,...exps].map(x=>x.date.slice(0,7))).size) + ' လ';
+  renderFinanceRecords();
+  let g=groupFinanceByMonth();
+  let months=Object.keys(g).sort((a,b)=>b.localeCompare(a));
+  if(months.length===0){
+    empty.classList.remove('hidden'); foot.innerHTML=''; return;
+  }
+  empty.classList.add('hidden');
+  let t={trays:0,looseEggs:0,viss:0,income:0,feed:0,medicine:0,rent:0,labor:0,other:0,expense:0};
+  months.forEach(mk=>{
+    let m=g[mk];
+    let profit=m.income-m.expense;
+    ['trays','looseEggs','viss','income','feed','medicine','rent','labor','other','expense'].forEach(k=>t[k]+=m[k]);
+        let salesTxt = m.sales.length? ([
+      m.trays>0? fmtN(m.trays,1)+' ဆွဲ':'',
+      m.looseEggs>0? Math.round(m.looseEggs).toLocaleString()+' လုံး':'',
+      m.viss>0? fmtN(m.viss,2)+' ပိဿာ':''
+    ].filter(Boolean).join(' + ')) : '-';
+    let tr=document.createElement('tr');
+    tr.className='hover:bg-emerald-50/60 dark:hover:bg-slate-700/40 cursor-pointer';
+    tr.onclick=()=>openMonthModal(mk);
+    tr.innerHTML=`
+      <td class="px-2 py-2.5 font-bold whitespace-nowrap text-xs">${mk}</td>
+      <td class="px-2 py-2.5 text-center text-xs">${salesTxt}</td>
+      <td class="px-2 py-2.5 text-center font-bold text-emerald-700 dark:text-emerald-300">${m.income.toLocaleString()}</td>
+      <td class="px-2 py-2.5 text-center">${m.feed? m.feed.toLocaleString():'-'}</td>
+      <td class="px-2 py-2.5 text-center">${m.medicine? m.medicine.toLocaleString():'-'}</td>
+      <td class="px-2 py-2.5 text-center">${m.rent? m.rent.toLocaleString():'-'}</td>
+      <td class="px-2 py-2.5 text-center">${m.labor? m.labor.toLocaleString():'-'}</td>
+      <td class="px-2 py-2.5 text-center">${m.other? m.other.toLocaleString():'-'}</td>
+      <td class="px-2 py-2.5 text-center font-bold">${m.expense? m.expense.toLocaleString():'-'}</td>
+      <td class="px-2 py-2.5 text-center font-bold ${profit>=0?'text-emerald-600 dark:text-emerald-400':'text-red-600 dark:text-red-400'}">${profit.toLocaleString()}</td>
+      <td class="px-2 py-2.5 text-center no-print"><button onclick="event.stopPropagation();openMonthModal('${mk}')" class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"><i class="fa-solid fa-magnifying-glass text-[11px]"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  let tProfit=t.income-t.expense;
+  foot.innerHTML=`
+    <td class="px-2 py-2">စုစုပေါင်း (${months.length} လ)</td>
+    <td class="px-2 py-2 text-center text-[11px]">${t.trays? t.trays.toFixed(2)+' ဆွဲ':''} ${t.looseEggs? '• '+Math.round(t.looseEggs).toLocaleString()+' လုံး':''} ${t.viss? '• '+t.viss.toFixed(2)+' ပိဿာ':''}</td>
+    <td class="px-2 py-2 text-center text-emerald-700 dark:text-emerald-300">${t.income.toLocaleString()}</td>
+    <td class="px-2 py-2 text-center">${t.feed.toLocaleString()}</td>
+    <td class="px-2 py-2 text-center">${t.medicine.toLocaleString()}</td>
+    <td class="px-2 py-2 text-center">${t.rent.toLocaleString()}</td>
+    <td class="px-2 py-2 text-center">${t.labor.toLocaleString()}</td>
+    <td class="px-2 py-2 text-center">${t.other.toLocaleString()}</td>
+    <td class="px-2 py-2 text-center">${t.expense.toLocaleString()}</td>
+    <td class="px-2 py-2 text-center ${tProfit>=0?'text-emerald-600 dark:text-emerald-400':'text-red-600 dark:text-red-400'}">${tProfit.toLocaleString()}</td>
+    <td class="px-2 py-2 no-print"></td>
+  `;
+}
+function openMonthModal(mk){
+  monthModalKey=mk;
+  let g=groupFinanceByMonth();
+  let m=g[mk];
+  if(!m) return;
+  document.getElementById('monthModalTitle').textContent='📅 '+mk+' လချုပ်';
+  let profit=m.income-m.expense;
+  let eggTotal=Math.round(m.trays*TRAY_SIZE + m.looseEggs);
+    document.getElementById('monthSummary').innerHTML=`
+    <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-center"><div class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">ဝင်ငွေ</div><div class="text-lg font-bold text-emerald-700 dark:text-emerald-300">${m.income.toLocaleString()} ကျပ်</div></div>
+    <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center"><div class="text-[11px] font-bold text-amber-700 dark:text-amber-300">ကုန်ကျစရိတ်</div><div class="text-lg font-bold text-amber-700 dark:text-amber-300">${m.expense.toLocaleString()} ကျပ်</div></div>
+    <div class="${profit>=0?'bg-emerald-100 dark:bg-emerald-900/30':'bg-red-50 dark:bg-red-900/20'} rounded-xl p-3 text-center"><div class="text-[11px] font-bold ${profit>=0?'text-emerald-700 dark:text-emerald-300':'text-red-700 dark:text-red-300'}">အမြတ်</div><div class="text-lg font-bold ${profit>=0?'text-emerald-700 dark:text-emerald-300':'text-red-700 dark:text-red-300'}">${profit.toLocaleString()} ကျပ်</div></div>
+    <div class="bg-slate-100 dark:bg-slate-700 rounded-xl p-3 text-center"><div class="text-[11px] font-bold text-slate-600 dark:text-slate-300">ဥအသေးစိတ်</div><div class="text-xs mt-1 dark:text-white">${eggTotal.toLocaleString()} လုံး • ${m.viss.toFixed(2)} ပိဿာ</div><div class="text-[10px] text-slate-500 dark:text-slate-400">${m.trays>0? '၁ဆွဲ ပျမ်းမျှ ≈ '+(m.viss/m.trays).toFixed(3)+' ပိဿာ':'-'}</div></div>
+  `;
+  let det=document.getElementById('monthDetail');
+  let rowsHtml='';
+  let items=[
+    ...m.sales.map(s=>({date:s.date, kind:'income', label:'ဥအရောင်း — '+(s.desc||'')+' • '+fmtN(s.viss,2)+'ပိဿာ'+(+s.price>0? ' × '+fmtN(s.price,0):''), sub:(s.buyer? 'ဝယ်သူ- '+s.buyer:''), amount:s.qty*s.price, id:s.id})),
+    ...m.exps.map(x=>({date:x.date, kind:'expense', label:EXPENSE_LABEL[x.type]||x.type, sub:(x.desc||'')+(x.note? (x.desc?' • ':'')+x.note:''), amount:x.amount, id:x.id}))
+  ];
+  items.sort((a,b)=>b.date.localeCompare(a.date));
+  items.forEach(it=>{
+    rowsHtml+=`<div class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl ${it.kind==='income'?'bg-emerald-50 dark:bg-emerald-900/20':'bg-amber-50 dark:bg-amber-900/10'}">
+      <div class="min-w-0">
+        <div class="text-xs font-bold truncate dark:text-white">${it.date} • ${it.label}</div>
+        ${it.sub? `<div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${it.sub}</div>`:''}
+      </div>
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <span class="text-xs font-bold ${it.kind==='income'?'text-emerald-700 dark:text-emerald-300':'text-amber-700 dark:text-amber-300'}">${it.kind==='income'?'+':'−'}${it.amount.toLocaleString()}</span>
+        <button onclick="closeMonthModal();${it.kind==='income'?"editSale":"editExpense"}('${it.id}')" class="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-500 hover:bg-blue-100 flex items-center justify-center" title="ပြင်ရန်"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="${it.kind==='income'?"deleteSale":"deleteExpense"}('${it.id}')" class="w-6 h-6 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-500 hover:bg-red-100 flex items-center justify-center"><i class="fa-solid fa-trash text-[10px]"></i></button>
+      </div>
+    </div>`;
+  });
+  det.innerHTML = rowsHtml || '<div class="text-center text-slate-400 text-xs py-4">မှတ်တမ်း မရှိပါ</div>';
+  document.getElementById('monthModal').classList.remove('hidden');
+  document.getElementById('monthModal').classList.add('flex');
+}
+function closeMonthModal(){
+  document.getElementById('monthModal').classList.add('hidden');
+  document.getElementById('monthModal').classList.remove('flex');
+  monthModalKey=null;
+}
+const EXPENSE_LABEL={feed:'ကြက်စာ', medicine:'ဆေးဖိုး', rent:'ခြံငှားခ', labor:'လုပ်အားခ', other:'အထွေထွေ'};
+renderFarms();
+if(selectedFarmId) selectFarm(selectedFarmId);
+else {
+  if(farms.length===0){
+    let demoId=genId();
+    farms=[{id:demoId, name:'ခြံ-A (နမူနာ)', breed:'Hy-Line Brown', initialBirds:1000, startDate: (()=>{let d=new Date(); d.setDate(d.getDate()-30); return d.toISOString().slice(0,10)})(), startAgeDays:70 }];
+    let recs=[];
+    for(let i=0;i<7;i++){
+      let d=new Date(farms[0].startDate); d.setDate(d.getDate()+30 -6 + i);
+      let iso=d.toISOString().slice(0,10);
+      let viss= (32 + Math.random()*2);
+      recs.push({date:iso, feed: +(110+Math.random()*4-2).toFixed(2), dead: i===2?1:0, eggs: 820+Math.floor(Math.random()*40), viss: +viss.toFixed(2), medicine: i===3?'ND+IB':'' , note:''});
+    }
+    allRecords[demoId]=recs;
+    selectedFarmId=demoId;
+    persist();
+    renderFarms(); selectFarm(demoId);
+  }
+}
+// ---- legacy finance data migration (mode/qty -> desc/viss/amount) ----
+function avgTrayVissFor(fid, dateStr){
+  let recs=(allRecords[fid]||[]).filter(r=>r.eggs>0 && (!dateStr||r.date<=dateStr));
+  if(recs.length===0) recs=(allRecords[fid]||[]).filter(r=>r.eggs>0);
+  if(recs.length===0) return 0;
+  let last=recs[recs.length-1];
+  return last.eggs>0? last.viss/last.eggs*TRAY_SIZE : 0;
+}
+(function migrateFinanceLegacy(){
+  let changed=false;
+  Object.keys(allSales).forEach(fid=>{
+    (allSales[fid]||[]).forEach(s=>{
+      if(s.viss===undefined){
+        let avg=avgTrayVissFor(fid, s.date);
+        let eggs=0, viss=0;
+        if(s.mode==='tray'){ eggs=s.qty*TRAY_SIZE; viss=avg*s.qty; }
+        else if(s.mode==='count'){ eggs=s.qty; viss=s.qty/TRAY_SIZE*avg; }
+        else { viss=s.qty; eggs=avg>0? s.qty/avg*TRAY_SIZE:0; }
+        s.desc = (s.qty!=null? s.qty+' '+(MODE_LABEL[s.mode]||''):'') || s.desc || '';
+        s.viss = +viss.toFixed(3);
+        s.amount = +(s.qty*(s.price||0)).toFixed(2);
+        delete s.mode; delete s.qty;
+        changed=true;
+      }
+    });
+  });
+  Object.keys(allExpenses).forEach(fid=>{
+    (allExpenses[fid]||[]).forEach(x=>{
+      if(x.name===undefined){ x.name=x.desc||''; x.qty=null; x.price=null; delete x.desc; changed=true; }
+    });
+  });
+  if(changed){ persist(); console.log('finance legacy migrated'); renderFinance(); }
+})();
+function renderFinanceRecords(){
+  let wrap=document.getElementById('financeRecords'); if(!wrap) return;
+  let flt=document.getElementById('finTypeFilter')? document.getElementById('finTypeFilter').value:'all';
+  let items=[];
+  if(flt!=='expense') getCurrentSales().forEach(s=>items.push({kind:'income', id:s.id, date:s.date, title:'ဥအရောင်း — '+(s.desc||''), sub:[s.buyer? 'ဝယ်သူ- '+s.buyer:'', (+s.viss>0? fmtN(s.viss,2)+'ပိဿာ':''), (+s.price>0? fmtN(s.price,0)+' ကျပ်/ပိဿာ':'')].filter(Boolean).join(' • '), amount:+s.amount||0}));
+  if(flt!=='income') getCurrentExpenses().forEach(x=>items.push({kind:'expense', id:x.id, date:x.date, title:(EXPENSE_LABEL[x.type]||x.type)+(x.name? ' — '+x.name:''), sub:[(x.qty>0&&x.price>0)? fmtN(x.qty,2)+' × '+fmtN(x.price,0):'', x.note||''].filter(Boolean).join(' • '), amount:+x.amount||0}));
+  items.sort((a,b)=>b.date.localeCompare(a.date));
+  let cnt=document.getElementById('financeRecCount'); if(cnt) cnt.textContent='('+items.length+' မှတ်တမ်း)';
+  if(items.length===0){ wrap.innerHTML='<div class="text-center text-slate-400 text-xs py-6">မှတ်တမ်း မရှိသေးပါ</div>'; return; }
+  let html='';
+  items.forEach(it=>{
+    html+=`<div class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl ${it.kind==='income'?'bg-emerald-50 dark:bg-emerald-900/20':'bg-amber-50 dark:bg-amber-900/10'}">
+      <div class="min-w-0">
+        <div class="text-xs font-bold truncate dark:text-white">${it.date} • ${it.title}</div>
+        ${it.sub? `<div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${it.sub}</div>`:''}
+      </div>
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <span class="text-xs font-bold ${it.kind==='income'?'text-emerald-700 dark:text-emerald-300':'text-amber-700 dark:text-amber-300'}">${it.kind==='income'?'+':'−'}${it.amount.toLocaleString()}</span>
+        <button onclick="${it.kind==='income'?"editSale":"editExpense"}('${it.id}')" title="ပြင်ရန်" class="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-500 hover:bg-blue-100 flex items-center justify-center"><i class="fa-solid fa-pen text-[10px]"></i></button>
+        <button onclick="${it.kind==='income'?"deleteSale":"deleteExpense"}('${it.id}')" title="ဖျက်ရန်" class="w-6 h-6 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-500 hover:bg-red-100 flex items-center justify-center"><i class="fa-solid fa-trash text-[10px]"></i></button>
+      </div>
+    </div>`;
+  });
+  wrap.innerHTML=html;
+}
+// init finance date defaults
+(function(){
+  const sd=document.getElementById('s_date'); if(sd) sd.value=todayStr;
+  const ed=document.getElementById('e_date'); if(ed) ed.value=todayStr;
+  updateSalePreview();
+})();// month modal backdrop click
+(function(){
+  const mm=document.getElementById('monthModal');
+  if(mm) mm.addEventListener('click', e=>{ if(e.target.id==='monthModal') closeMonthModal(); });
+})();
+// init perPage selects
+document.getElementById('dailyPerPage').value=dailyPerPage;
+document.getElementById('weeklyPerPage').value=weeklyPerPage;
+</script>
+</body>
+</html>
